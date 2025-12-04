@@ -6,19 +6,23 @@
     <title>VinParts Pro - Pièces Auto</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
-<body class="bg-light">
+<body>
 
-    <!-- NAV -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
-            <a class="navbar-brand fw-bold text-uppercase" href="#" onclick="resetSearch()">
-                <span class="text-danger">VIN</span>PARTS
+            <a class="navbar-brand text-uppercase" href="#" onclick="resetSearch()">
+                <span>VIN</span>PARTS
             </a>
-            <div class="ms-auto">
-                <a href="#" class="btn btn-outline-light position-relative">
-                    <i class="fa-solid fa-cart-shopping"></i> <span class="d-none d-md-inline">Panier</span>
+            <div class="ms-auto d-flex align-items-center gap-3">
+                <a href="#" class="text-decoration-none text-muted fw-bold small d-none d-md-block">
+                    <i class="fa-solid fa-headset me-1"></i> Aide
+                </a>
+                <a href="#" class="btn btn-outline-primary position-relative rounded-pill px-4">
+                    <i class="fa-solid fa-cart-shopping"></i> 
                     <span id="cart-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">0</span>
                 </a>
             </div>
@@ -26,59 +30,66 @@
     </nav>
 
     <!-- RECHERCHE -->
-    <section id="section-search" class="hero-section text-white">
-        <div class="container py-5">
+    <section id="section-search" class="hero-section">
+        <div class="container">
             <div class="row justify-content-center">
                 <div class="col-lg-8 text-center">
-                    <h1 class="display-5 fw-bold mb-4">Trouvez vos pièces d'origine</h1>
+                    <h1 class="display-6 fw-bold mb-4">Trouvez la pièce exacte</h1>
                     
-                    <div class="card shadow-lg text-dark text-start">
-                        <div class="card-header bg-white border-0 pt-4 px-4">
-                            <ul class="nav nav-tabs card-header-tabs" id="searchTabs" role="tablist">
+                    <div class="card border-0 text-dark text-start mx-auto" style="max-width: 700px;">
+                        <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                            <ul class="nav nav-tabs border-0" id="searchTabs" role="tablist">
                                 <li class="nav-item">
-                                    <button class="nav-link active fw-bold text-danger" id="vin-tab" data-bs-toggle="tab" data-bs-target="#vin-panel" type="button">
-                                        <i class="fa-solid fa-barcode"></i> Par VIN
+                                    <button class="nav-link active" id="vin-tab" data-bs-toggle="tab" data-bs-target="#vin-panel" type="button">
+                                        <i class="fa-solid fa-barcode me-2"></i> Par VIN
                                     </button>
                                 </li>
                                 <li class="nav-item">
-                                    <button class="nav-link fw-bold text-dark" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-panel" type="button">
-                                        <i class="fa-solid fa-car"></i> Par Véhicule
+                                    <button class="nav-link" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-panel" type="button">
+                                        <i class="fa-solid fa-car me-2"></i> Par Véhicule
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link" id="ref-tab" data-bs-toggle="tab" data-bs-target="#ref-panel" type="button">
+                                        <i class="fa-solid fa-magnifying-glass me-2"></i> Par Référence
                                     </button>
                                 </li>
                             </ul>
                         </div>
-                        <div class="card-body p-4 bg-white rounded-bottom">
+                        <div class="card-body p-4 bg-white">
                             <div class="tab-content">
                                 <!-- TAB VIN -->
                                 <div class="tab-pane fade show active" id="vin-panel">
-                                    <div class="input-group input-group-lg">
-                                        <input type="text" id="vin-input" class="form-control" placeholder="Entrez votre numéro VIN">
-                                        <button class="btn btn-danger px-4" id="btn-search-vin">RECHERCHER</button>
+                                    <div class="d-flex gap-2">
+                                        <input type="text" id="vin-input" class="form-control form-control-lg" placeholder="Entrez votre numéro VIN (ex: VF7...)">
+                                        <button class="btn btn-primary px-4" id="btn-search-vin">RECHERCHER</button>
+                                    </div>
+                                    <div class="mt-3 text-muted small">
+                                        <i class="fa-solid fa-info-circle text-primary"></i> Le VIN se trouve au repère E de votre carte grise.
                                     </div>
                                 </div>
 
-                                <!-- TAB MANUEL (LEVAM) -->
+                                <!-- TAB MANUEL -->
                                 <div class="tab-pane fade" id="manual-panel">
-                                    <div class="row g-2">
-                                        <div class="col-md-4">
-                                            <select class="form-select form-select-lg" id="brandSelect">
-                                                <option value="">Marque</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <select class="form-select form-select-lg" id="modelSelect" disabled>
-                                                <option value="">Modèle</option>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <select class="form-select form-select-lg" id="vehicleSelect" disabled>
-                                                <option value="">Version</option>
-                                            </select>
-                                        </div>
+                                    <div class="row g-3">
+                                        <div class="col-md-4"><select class="form-select" id="brandSelect"><option value="">Marque</option></select></div>
+                                        <div class="col-md-4"><select class="form-select" id="modelSelect" disabled><option value="">Modèle</option></select></div>
+                                        <div class="col-md-4"><select class="form-select" id="vehicleSelect" disabled><option value="">Version</option></select></div>
+                                    </div>
+                                </div>
+
+                                <!-- TAB REFERENCE -->
+                                <div class="tab-pane fade" id="ref-panel">
+                                    <div class="d-flex gap-2">
+                                        <input type="text" id="ref-input" class="form-control form-control-lg" placeholder="Réf. Constructeur, Référence Bosch, Nom...">
+                                        <button class="btn btn-primary px-4" id="btn-search-ref">TROUVER</button>
+                                    </div>
+                                    <div class="mt-3 text-muted small">
+                                        <i class="fa-solid fa-lightbulb text-warning"></i> Ex: <em>"OC90", "71754321", "Filtre à huile Clio 4"...</em>
                                     </div>
                                 </div>
                             </div>
-                            <div id="search-status" class="text-center"></div>
+                            <div id="search-status" class="text-center mt-2"></div>
                         </div>
                     </div>
                 </div>
@@ -87,74 +98,64 @@
     </section>
 
     <!-- GARAGE HEADER -->
-    <section id="section-garage" class="d-none bg-dark text-white py-3 shadow-sm sticky-sub-nav">
+    <section id="section-garage" class="d-none py-3 sticky-sub-nav">
         <div class="container d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
-                <div class="bg-success rounded-circle p-2 me-3"><i class="fa-solid fa-check text-white"></i></div>
-                <div>
-                    <h5 class="m-0 fw-bold" id="garage-vehicle-name">-</h5>
-                    <small class="text-white-50" id="garage-vehicle-details">-</small>
-                </div>
+                <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-3 me-3"><i class="fa-solid fa-car fa-lg"></i></div>
+                <div><h5 class="m-0 fw-bold" id="garage-vehicle-name">-</h5><small id="garage-vehicle-details">-</small></div>
             </div>
-            <button class="btn btn-outline-light btn-sm" onclick="resetSearch()">Changer</button>
+            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="resetSearch()"><i class="fa-solid fa-rotate-left me-1"></i> Changer</button>
         </div>
     </section>
 
     <!-- CATALOGUE -->
     <section id="section-catalog" class="container py-4 d-none">
-        <div class="row">
+        <div class="row g-4">
             <!-- ARBRE -->
-            <div class="col-lg-3 mb-4">
-                <div class="card shadow-sm border-0">
-                    <div class="card-header bg-danger text-white fw-bold"><i class="fa-solid fa-list"></i> Groupes</div>
+            <div class="col-lg-3 d-none d-lg-block" id="tree-column">
+                <div class="card h-100">
+                    <div class="card-header bg-white fw-bold text-uppercase text-muted small py-3">Catégories</div>
                     <div class="card-body p-0" id="tree-container"></div>
                 </div>
             </div>
             
             <!-- CONTENU -->
-            <div class="col-lg-9">
-                <!-- Vue Eclatée (Avec conteneur de Zoom) -->
-                <div id="exploded-view-container" class="card shadow-sm border-0 mb-4 d-none">
-                    
-                    <!-- Toolbar de Zoom -->
-                    <div class="zoom-toolbar">
-                        <button class="btn btn-light btn-sm shadow-sm" onclick="zoomIn()"><i class="fa-solid fa-plus"></i></button>
-                        <button class="btn btn-light btn-sm shadow-sm" onclick="zoomOut()"><i class="fa-solid fa-minus"></i></button>
-                        <button class="btn btn-light btn-sm shadow-sm" onclick="zoomReset()"><i class="fa-solid fa-compress"></i></button>
+            <div class="col-lg-9" id="parts-column">
+                <div id="exploded-view-container" class="card mb-4 d-none shadow-none border">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                        <small class="fw-bold text-primary"><i class="fa-solid fa-layer-group"></i> Vue Technique</small>
+                        <div class="zoom-toolbar d-flex gap-1">
+                            <button class="btn btn-light btn-sm border" onclick="zoomIn()"><i class="fa-solid fa-plus"></i></button>
+                            <button class="btn btn-light btn-sm border" onclick="zoomOut()"><i class="fa-solid fa-minus"></i></button>
+                            <button class="btn btn-light btn-sm border" onclick="zoomReset()"><i class="fa-solid fa-compress"></i></button>
+                        </div>
                     </div>
-
-                    <!-- Zone de l'image (C'est cet ID qui sera zoomé) -->
-                    <div class="exploded-viewport">
-                        <div id="exploded-wrapper"></div>
-                    </div>
-                    
-                    <div class="card-footer bg-light p-1 text-center text-muted small">
-                        <i class="fa-solid fa-hand-pointer"></i> Scrollez ou pincez pour zoomer • Glissez pour déplacer
-                    </div>
+                    <div class="exploded-viewport" style="height:500px; overflow:hidden; position:relative;"><div id="exploded-wrapper"></div></div>
+                    <div class="card-footer bg-white text-center small text-muted border-top-0"><i class="fa-solid fa-hand-pointer me-1"></i> Scrollez pour zoomer</div>
                 </div>
 
-                <h4 class="mb-3 fw-bold border-bottom pb-2">Pièces <span id="category-title" class="text-muted fw-normal"></span></h4>
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h4 class="fw-bold m-0"><span id="category-title">Résultats</span></h4>
+                </div>
                 <div id="parts-grid"></div>
             </div>
         </div>
     </section>
 
-    <!-- MODAL OFFRES TECDOC -->
+    <!-- MODAL OFFRES -->
     <div class="modal fade" id="productModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title" id="modal-title">Offres compatibles</h5>
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-primary text-white border-0">
+                    <h5 class="modal-title fw-bold" id="modal-title">Offres compatibles</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body" id="modal-body"></div>
+                <div class="modal-body p-0" id="modal-body"></div>
             </div>
         </div>
     </div>
 
-    <!-- LIBRAIRIES -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Librairie PanZoom pour le schéma -->
     <script src="https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js"></script>
     <script src="assets/js/modern-app.js"></script>
 </body>
