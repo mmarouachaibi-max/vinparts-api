@@ -1,4 +1,4 @@
-const API_BASE = "/api";
+const API_BASE = "https://vinparts-api.onrender.com";
 let currentVehicleData = null;
 let panzoomInstance = null;
 
