@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Vue éclatée / pièces – Levam</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 20px auto 40px;
+      padding: 0 16px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 24px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      padding: 16px 18px;
+      margin-bottom: 16px;
+    }
+
+    .text-muted {
+      color: #6b7280;
+      font-size: 13px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      background: #e5e7eb;
+      color: #374151;
+      vertical-align: middle;
+    }
+
+    /* ---------- Header véhicule ---------- */
+
+    .vehicle-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .vehicle-info {
+      flex: 2 1 280px;
+    }
+
+    .vehicle-info-row {
+      margin: 2px 0;
+      font-size: 14px;
+    }
+
+    .vehicle-info-row span.label {
+      display: inline-block;
+      width: 90px;
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    .vehicle-image {
+      flex: 1 1 180px;
+      text-align: right;
+    }
+
+    .vehicle-image img {
+      max-width: 220px;
+      max-height: 140px;
+      border-radius: 8px;
+      object-fit: contain;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
+    }
+
+    /* ---------- Layout arbre / pièces ---------- */
+
+    .split-layout {
+      display: grid;
+      grid-template-columns: 1.1fr 1.6fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .split-layout {
+        grid-template-columns: 1fr;
+      }
+      .vehicle-image {
+        text-align: left;
+      }
+    }
+
+    /* ---------- Arbre des groupes ---------- */
+
+    .tree-container {
+      max-height: 540px;
+      overflow: auto;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      padding: 10px 12px;
+      background: #f9fafb;
+    }
+
+    .tree-root-label {
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #065f46;
+    }
+
+    .tree-level {
+      list-style: none;
+      margin: 0;
+      padding-left: 16px;
+    }
+
+    .tree-item {
+      margin: 4px 0;
+      font-size: 13px;
+    }
+
+    .tree-item-label {
+      font-weight: 600;
+      color: #111827;
+      margin-right: 4px;
+    }
+
+    .node-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 2px 0;
+    }
+
+    .node-name {
+      font-size: 13px;
+    }
+
+    .node-id {
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 9999px;
+      padding: 3px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      background: #2563eb;
+      color: #ffffff;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: #1d4ed8;
+    }
+
+    .btn-sm {
+      padding: 2px 8px;
+      font-size: 11px;
+    }
+
+    .btn-outline {
+      background: #ffffff;
+      color: #2563eb;
+      border: 1px solid #bfdbfe;
+    }
+
+    .btn-outline:hover {
+      background: #eff6ff;
+    }
+
+    .node-selected {
+      background: #e0f2fe;
+      border-radius: 6px;
+      padding: 2px 4px;
+    }
+
+    /* ---------- Vue éclatée / tableau ---------- */
+
+    .parts-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      gap: 8px;
+    }
+
+    .parts-title {
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .parts-subtitle {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .diagram-box {
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      padding: 6px;
+      margin-bottom: 10px;
+      background: #f9fafb;
+      text-align: center;
+    }
+
+    .diagram-box img {
+      max-height: 260px;
+      max-width: 100%;
+      object-fit: contain;
+    }
+
+    .diagram-placeholder {
+      font-size: 13px;
+      color: #9ca3af;
+      padding: 20px 10px;
+    }
+
+    .parts-table-wrapper {
+      max-height: 360px;
+      overflow: auto;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      background: #ffffff;
+    }
+
+    table.parts-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    table.parts-table thead {
+      position: sticky;
+      top: 0;
+      background: #eff6ff;
+      z-index: 1;
+    }
+
+    table.parts-table th,
+    table.parts-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+    }
+
+    table.parts-table th {
+      font-weight: 600;
+      font-size: 12px;
+      color: #111827;
+    }
+
+    table.parts-table tr:nth-child(even) td {
+      background: #f9fafb;
+    }
+
+    .part-ref {
+      font-family: "Consolas", "Fira Code", monospace;
+      font-size: 12px;
+    }
+
+    .part-name {
+      font-weight: 500;
+    }
+
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+
+    .alert {
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin: 4px 0 8px;
+    }
+
+    .alert-info {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+    }
+
+    .alert-error {
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+
+    /* ---------- Debug JSON ---------- */
+
+    details.debug {
+      margin-top: 10px;
+      font-size: 12px;
+    }
+
+    details.debug summary {
+      cursor: pointer;
+      color: #2563eb;
+    }
+
+    pre.debug-json {
+      background: #111827;
+      color: #e5e7eb;
+      padding: 10px;
+      border-radius: 8px;
+      overflow: auto;
+      max-height: 260px;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="card">
+    <h1>Vue éclatée / pièces</h1>
+    <p class="text-muted">
+      Résultat Levam OEM à partir de la recherche VIN. Choisis un groupe dans la liste pour afficher le schéma et les pièces.
+    </p>
+  </div>
+
+  <!-- 2. Véhicule identifié -->
+  <div class="card">
+    <h2>2. Véhicule identifié</h2>
+    <div class="vehicle-header">
+      <div class="vehicle-info" id="vehicleInfo"></div>
+      <div class="vehicle-image" id="vehicleImageBox">
+        <span class="text-muted" style="font-size:12px;">
+          L’image du modèle sera affichée ici lorsque la première vue éclatée sera chargée.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Groupes & Vue éclatée -->
+  <div class="card">
+    <h2>3. Groupes de pièces et vue éclatée</h2>
+    <div id="globalStatus" class="alert alert-info" style="display:none;"></div>
+
+    <div class="split-layout">
+      <!-- Colonne gauche : groupes (PartGroupsGet) -->
+      <div>
+        <div class="tree-container" id="treeContainer">
+          Chargement des groupes de pièces…
+        </div>
+      </div>
+
+      <!-- Colonne droite : vue éclatée / pièces -->
+      <div>
+        <div class="parts-header">
+          <div>
+            <div class="parts-title" id="partsTitle">
+              Aucune rubrique sélectionnée
+            </div>
+            <div class="parts-subtitle" id="partsSubtitle">
+              Sélectionne un groupe dans la liste pour voir les pièces correspondantes.
+            </div>
+          </div>
+          <div>
+            <button class="btn btn-outline btn-sm" id="btnClearSelection" type="button" style="display:none;">
+              Effacer la sélection
+            </button>
+          </div>
+        </div>
+
+        <div class="diagram-box" id="diagramBox">
+          <div class="diagram-placeholder">
+            Vue éclatée : choisis un groupe pour afficher le schéma et la liste des références.
+          </div>
+        </div>
+
+        <div class="parts-table-wrapper" id="partsTableWrapper" style="display:none;">
+          <table class="parts-table" id="partsTable">
+            <thead>
+            <tr>
+              <th style="width:90px;">Réf.</th>
+              <th>Désignation</th>
+              <th style="width:60px;">Qté</th>
+              <th>Infos / remarques</th>
+              <th style="width:80px;">Image</th>
+            </tr>
+            </thead>
+            <tbody id="partsTbody"></tbody>
+          </table>
+        </div>
+
+        <details class="debug" id="debugBlock" style="display:none;">
+          <summary>Voir le JSON complet (debug)</summary>
+          <pre class="debug-json" id="debugJson"></pre>
+        </details>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // -------- Utilitaires --------
+  function getQueryParam(name) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name) || "";
+  }
+
+  function setGlobalStatus(message, type = "info") {
+    const el = document.getElementById("globalStatus");
+    if (!message) {
+      el.style.display = "none";
+      return;
+    }
+    el.textContent = message;
+    el.className = "alert " + (type === "error" ? "alert-error" : "alert-info");
+    el.style.display = "block";
+  }
+
+  const state = {
+    ssd: getQueryParam("ssd"),
+    link: getQueryParam("link"),
+    currentGroup: null,
+    rawPartsResponse: null,
+    lastSelectedButton: null
+  };
+
+  // -------- Header véhicule (params venant de vin.html) --------
+  function initVehicleHeader() {
+    const infoBox = document.getElementById("vehicleInfo");
+    const mark = getQueryParam("mark") || "—";
+    const family = getQueryParam("family") || "—";
+    const model = getQueryParam("model") || "—";
+    const vin = getQueryParam("vin") || "—";
+    const modification = getQueryParam("modification") || "";
+
+    infoBox.innerHTML = `
+      <div class="vehicle-info-row"><span class="label">Marque :</span>${mark}</div>
+      <div class="vehicle-info-row"><span class="label">Famille :</span>${family}</div>
+      <div class="vehicle-info-row"><span class="label">Modèle :</span>${model}</div>
+      <div class="vehicle-info-row"><span class="label">VIN :</span><span class="badge">${vin}</span></div>
+      <div class="vehicle-info-row"><span class="label">Modification :</span>${modification || "<span class='text-muted'>–</span>"}</div>
+    `;
+  }
+
+  // -------- GROUPES (PartGroupsGet) --------
+  async function loadGroups() {
+    const container = document.getElementById("treeContainer");
+    if (!state.ssd || !state.link) {
+      container.innerHTML = "<span class='text-muted'>Paramètres manquants (ssd / link).</span>";
+      return;
+    }
+
+    try {
+      setGlobalStatus("Chargement des groupes de pièces (PartGroupsGet)…", "info");
+
+      const resp = await fetch(
+        `/api/levam/groups?ssd=${encodeURIComponent(state.ssd)}&link=${encodeURIComponent(state.link)}`
+      );
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+
+      buildGroupsTree(data);
+      setGlobalStatus("Groupes de pièces chargés. Clique sur un groupe pour afficher la vue éclatée.");
+    } catch (e) {
+      console.error("Erreur chargement PartGroupsGet:", e);
+      container.innerHTML =
+        "<span class='text-muted'>Erreur lors du chargement des groupes de pièces.</span>";
+      setGlobalStatus("Erreur lors du chargement des groupes Levam.", "error");
+    }
+  }
+
+  function buildGroupsTree(data) {
+    const container = document.getElementById("treeContainer");
+    container.innerHTML = "";
+
+    // la structure exacte varie un peu selon Levam.
+    // souvent : data.groups / data.partgroups / data.trees etc.
+    const groups = data.groups || data.partgroups || data.trees || data || [];
+
+    const root = document.createElement("div");
+    const title = document.createElement("div");
+    title.className = "tree-root-label";
+    title.textContent = "Groupes de pièces disponibles :";
+    root.appendChild(title);
+
+    const ul = document.createElement("ul");
+    ul.className = "tree-level";
+
+    const list = Array.isArray(groups) ? groups : [];
+
+    list.forEach((g) => {
+      const groupCode = g.group || g.code || g.group_code || "";
+      const groupName = g.name || g.group_name || g.description || "(sans nom)";
+
+      const li = document.createElement("li");
+      li.className = "tree-item";
+
+      const div = document.createElement("div");
+      div.className = "node-line";
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "node-name";
+      nameSpan.textContent = groupName;
+
+      const idSpan = document.createElement("span");
+      idSpan.className = "node-id";
+      idSpan.textContent = groupCode ? `[${groupCode}]` : "";
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-sm btn-outline";
+      btn.textContent = "Voir les pièces";
+      btn.addEventListener("click", () => {
+        selectNode(btn);
+        loadPartsForGroup(groupCode, groupName);
+      });
+
+      div.appendChild(nameSpan);
+      if (groupCode) div.appendChild(idSpan);
+      div.appendChild(btn);
+
+      li.appendChild(div);
+      ul.appendChild(li);
+    });
+
+    root.appendChild(ul);
+    container.appendChild(root);
+  }
+
+  function selectNode(buttonEl) {
+    if (state.lastSelectedButton && state.lastSelectedButton.parentElement) {
+      state.lastSelectedButton.parentElement.classList.remove("node-selected");
+    }
+    if (buttonEl && buttonEl.parentElement) {
+      buttonEl.parentElement.classList.add("node-selected");
+      state.lastSelectedButton = buttonEl;
+    }
+    document.getElementById("btnClearSelection").style.display = "inline-block";
+  }
+
+  function clearSelection() {
+    state.currentGroup = null;
+    if (state.lastSelectedButton && state.lastSelectedButton.parentElement) {
+      state.lastSelectedButton.parentElement.classList.remove("node-selected");
+    }
+    state.lastSelectedButton = null;
+    document.getElementById("btnClearSelection").style.display = "none";
+    document.getElementById("partsTitle").textContent = "Aucune rubrique sélectionnée";
+    document.getElementById("partsSubtitle").textContent =
+      "Sélectionne un groupe dans la liste pour voir les pièces correspondantes.";
+    document.getElementById("partsTableWrapper").style.display = "none";
+    document.getElementById("debugBlock").style.display = "none";
+    document.getElementById("diagramBox").innerHTML =
+      '<div class="diagram-placeholder">Vue éclatée : choisis un groupe pour afficher le schéma et la liste des références.</div>';
+  }
+
+  // -------- PARTS (PartsGet) --------
+  async function loadPartsForGroup(groupId, groupName) {
+    if (!groupId) {
+      alert("Identifiant de groupe manquant pour cette rubrique.");
+      return;
+    }
+
+    state.currentGroup = groupId;
+    document.getElementById("partsTitle").textContent = groupName || "Vue éclatée";
+    document.getElementById("partsSubtitle").textContent = `Groupe Levam : ${groupId}`;
+
+    try {
+      setGlobalStatus(`Chargement des pièces pour le groupe ${groupId}…`, "info");
+
+      const url = `/api/levam/parts?ssd=${encodeURIComponent(state.ssd)}&link=${encodeURIComponent(state.link)}&group=${encodeURIComponent(groupId)}`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+
+      state.rawPartsResponse = data;
+      renderParts(data);
+      setGlobalStatus(`Pièces chargées pour le groupe ${groupId}.`, "info");
+    } catch (e) {
+      console.error("Erreur PartsGet:", e);
+      setGlobalStatus("Erreur lors du chargement des pièces Levam.", "error");
+    }
+  }
+
+  function renderParts(data) {
+    const wrapper = document.getElementById("partsTableWrapper");
+    const tbody = document.getElementById("partsTbody");
+    const debugBlock = document.getElementById("debugBlock");
+    const debugJson = document.getElementById("debugJson");
+    const diagramBox = document.getElementById("diagramBox");
+    const vehicleImageBox = document.getElementById("vehicleImageBox");
+
+    tbody.innerHTML = "";
+    wrapper.style.display = "none";
+    debugBlock.style.display = "none";
+    diagramBox.innerHTML = "";
+
+    if (!data) {
+      diagramBox.innerHTML =
+        '<div class="diagram-placeholder">Aucune donnée reçue pour ce groupe.</div>';
+      return;
+    }
+
+    // Image de schéma
+    let schemaUrl = "";
+    if (data.fig && data.fig.scheme_image) {
+      schemaUrl = data.fig.scheme_image;
+    } else if (data.images && data.images.scheme) {
+      schemaUrl = data.images.scheme;
+    }
+
+    if (schemaUrl) {
+      diagramBox.innerHTML = `<img src="${schemaUrl}" alt="Vue éclatée" />`;
+    } else {
+      diagramBox.innerHTML =
+        '<div class="diagram-placeholder">Aucun schéma fourni pour ce groupe (liste de pièces uniquement).</div>';
+    }
+
+    // Image du modèle
+    if (data.model_image) {
+      vehicleImageBox.innerHTML = `<img src="${data.model_image}" alt="Modèle" />`;
+    }
+
+    const partsArray = data.parts && Array.isArray(data.parts.parts)
+      ? data.parts.parts
+      : [];
+
+    if (partsArray.length === 0) {
+      wrapper.style.display = "none";
+      debugBlock.style.display = "block";
+      debugJson.textContent = JSON.stringify(data, null, 2);
+      return;
+    }
+
+    partsArray.forEach((p) => {
+      const st = p.standart || p.standard || {};
+      const add = p.add || {};
+      const images = p.images || {};
+
+      const ref = st.part_code || st.code || "";
+      const num = st.part_number || "";
+      const name = st.part_name || st.name || "";
+      const qty = st.part_quantity || st.quantity || "";
+      const info = add.info || add.description || "";
+
+      let imgCellHtml = "";
+      if (images.scheme || images.main || images.preview) {
+        const imgUrl = images.scheme || images.main || images.preview;
+        imgCellHtml = `<a href="${imgUrl}" target="_blank" class="btn btn-sm btn-outline">Voir</a>`;
+      } else {
+        imgCellHtml = `<span class="text-muted" style="font-size:11px;">–</span>`;
+      }
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>
+          <div class="part-ref">${ref || "—"}</div>
+          ${num ? `<div class="text-muted" style="font-size:11px;">N° ${num}</div>` : ""}
+        </td>
+        <td><div class="part-name">${name || "Pièce"}</div></td>
+        <td class="text-center">${qty || "1"}</td>
+        <td>${info || "<span class='text-muted'>—</span>"}</td>
+        <td class="text-center">${imgCellHtml}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    wrapper.style.display = "block";
+    debugBlock.style.display = "block";
+    debugJson.textContent = JSON.stringify(data, null, 2);
+  }
+
+  // -------- Boot --------
+  document.getElementById("btnClearSelection").addEventListener("click", clearSelection);
+
+  window.addEventListener("DOMContentLoaded", () => {
+    initVehicleHeader();
+    loadGroups();
+  });
+</script>
+</body>
+</html>

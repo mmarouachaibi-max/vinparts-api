@@ -1,0 +1,135 @@
+/* CONFIG GENERALE */
+body { font-family: 'Segoe UI', sans-serif; background: #f8f9fa; }
+.hero-section { background: #212529; color: white; padding: 40px 0; }
+.navbar-brand span { color: #dc3545; }
+
+/* ARBRE CATEGORIES */
+.accordion-button:not(.collapsed) { background-color: #ffeaea; color: #dc3545; }
+.accordion-button:focus { box-shadow: none; border-color: rgba(220,53,69,0.25); }
+.tree-leaf-btn:hover { color: #dc3545; background: #f8f9fa; }
+
+/* --- VUE ECLATÉE & ZOOM (AMÉLIORÉ) --- */
+#exploded-view-container {
+    background: #fdfdfd;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    position: relative; /* Pour positionner la toolbar */
+    overflow: hidden;   /* Important pour ne pas que l'image sorte */
+}
+
+/* La fenêtre de vue (Viewport) */
+.exploded-viewport {
+    height: 500px; /* Hauteur fixe pour le confort */
+    width: 100%;
+    overflow: hidden;
+    cursor: grab; /* Curseur "main" */
+    background-image: radial-gradient(#e0e0e0 1px, transparent 1px);
+    background-size: 20px 20px; /* Petit effet grille technique */
+}
+.exploded-viewport:active {
+    cursor: grabbing; /* Main fermée quand on glisse */
+}
+
+/* Le contenu qui bouge (Image + Points) */
+#exploded-wrapper {
+    position: relative;
+    display: inline-block;
+    transform-origin: 0 0; /* Important pour le zoom */
+}
+#exploded-wrapper img {
+    display: block;
+    max-width: none; /* L'image peut dépasser, on zoome dessus */
+    pointer-events: none; /* Empêche le drag natif du navigateur */
+}
+
+/* Toolbar de Zoom Flottante */
+.zoom-toolbar {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.zoom-toolbar button {
+    border: 1px solid #ccc;
+    background: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.zoom-toolbar button:hover { background: #f0f0f0; color: #dc3545; }
+
+/* MARQUEURS */
+.exploded-marker {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.85);
+    border: 2px solid #dc3545;
+    color: #dc3545;
+    font-weight: bold;
+    font-size: 12px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 4px;
+    transform: translate(-50%, -50%);
+    /* On force la taille pour qu'ils ne grossissent pas trop au zoom */
+    transform-origin: center; 
+    z-index: 10;
+}
+.exploded-marker:hover, .exploded-marker.active {
+    background: #dc3545;
+    color: white;
+    z-index: 20;
+    box-shadow: 0 0 10px rgba(220, 53, 69, 0.6);
+}
+
+/* LISTE PIECES */
+.part-card { transition: all 0.3s; border: 1px solid #eee; }
+.part-card:hover { border-color: #aaa; }
+.part-card.active-part { border: 2px solid #dc3545; background-color: #fff5f5; transform: translateX(5px); }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
+/* --- SKELETON LOADER (Moderne) --- */
+.skeleton {
+    background-color: #e0e0e0;
+    border-radius: 4px;
+    /* L'animation de scintillement */
+    background-image: linear-gradient(90deg, #e0e0e0 0px, #f0f0f0 40px, #e0e0e0 80px);
+    background-size: 600px;
+    animation: shine-lines 1.6s infinite linear;
+}
+
+@keyframes shine-lines {
+    0% { background-position: -100px; }
+    40%, 100% { background-position: 300px; }
+}
+
+/* Structure du faux élément */
+.skeleton-card {
+    border: 1px solid #eee;
+    background: #fff;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+}
+
+.skeleton-img { width: 80px; height: 80px; margin-right: 20px; }
+.skeleton-text-group { flex-grow: 1; }
+.skeleton-line { height: 16px; margin-bottom: 8px; width: 60%; }
+.skeleton-line.short { width: 40%; }
+.skeleton-btn { width: 100px; height: 35px; margin-left: auto; }

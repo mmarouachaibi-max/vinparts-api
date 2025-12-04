@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Recherche pièces sans VIN - Levam</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background-color: #f7f7f7;
+    }
+
+    h1 {
+      margin-top: 0;
+      margin-bottom: 12px;
+      font-size: 24px;
+    }
+
+    h2, h3 {
+      margin-top: 16px;
+      margin-bottom: 8px;
+    }
+
+    .status {
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      background: #e9f3ff;
+      border-left: 4px solid #1976d2;
+      font-size: 14px;
+    }
+
+    .status.error {
+      background: #ffecec;
+      border-left-color: #d32f2f;
+    }
+
+    .status.warning {
+      background: #fff8e1;
+      border-left-color: #ffa000;
+    }
+
+    .muted {
+      color: #777;
+      font-size: 13px;
+    }
+
+    .levam-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+
+    .levam-filters label {
+      font-size: 14px;
+      margin-right: 4px;
+    }
+
+    .levam-filters select {
+      padding: 4px 6px;
+      min-width: 180px;
+    }
+
+    .levam-main {
+      display: grid;
+      grid-template-columns: 1.1fr 2fr;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    #tree-container {
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 10px;
+      max-height: 700px;
+      overflow: auto;
+      border-radius: 4px;
+    }
+
+    .tree-group {
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+    }
+
+    .tree-group-title {
+      font-weight: bold;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .tree-sub {
+      font-size: 13px;
+      font-weight: 600;
+      margin: 2px 0 4px 4px;
+    }
+
+    .tree-node-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      padding: 2px 0;
+      margin-left: 8px;
+    }
+
+    .tree-node-label {
+      flex: 1;
+      margin-right: 8px;
+    }
+
+    .tree-node-btn {
+      padding: 2px 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .levam-detail {
+      background: #fff;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 4px;
+    }
+
+    #exploded-wrapper {
+      margin-bottom: 6px;
+      text-align: center;
+      background: #fafafa;
+      border: 1px solid #eee;
+      padding: 6px;
+      position: relative;
+      min-height: 80px;
+    }
+
+    #exploded-info {
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    #parts-container {
+      margin-top: 8px;
+      max-height: 260px;
+      overflow: auto;
+      border: 1px solid #eee;
+      padding: 4px;
+    }
+
+    table.parts,
+    table.tecdoc-result-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    table.parts th,
+    table.parts td,
+    table.tecdoc-result-table th,
+    table.tecdoc-result-table td {
+      border: 1px solid #ddd;
+      padding: 4px 6px;
+      text-align: left;
+    }
+
+    table.parts th,
+    table.tecdoc-result-table th {
+      background: #f1f1f1;
+    }
+
+    #tecdoc-results {
+      margin-top: 10px;
+      font-size: 13px;
+    }
+
+    .btn-levam-tecdoc,
+    .btn-commande {
+      padding: 2px 6px;
+      font-size: 11px;
+      cursor: pointer;
+      border-radius: 3px;
+      border: 1px solid #1976d2;
+      background: #2196f3;
+      color: #fff;
+    }
+
+    .btn-levam-tecdoc:hover,
+    .btn-commande:hover {
+      background: #1976d2;
+    }
+
+    /* Marqueurs sur la vue éclatée
+       (le JS ajoute .exploded-marker et .marker-highlight) */
+    #exploded-wrapper {
+      position: relative;
+    }
+
+    .exploded-marker {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      min-width: 18px;
+      min-height: 18px;
+      padding: 2px 4px;
+      border-radius: 50%;
+      border: 1px solid #222;
+      background: rgba(255, 255, 255, 0.9);
+      font-size: 11px;
+      line-height: 1.2;
+      text-align: center;
+      cursor: pointer;
+      box-sizing: border-box;
+    }
+
+    .exploded-marker.marker-highlight {
+      border-width: 2px;
+      box-shadow: 0 0 0 2px rgba(255, 165, 0, 0.7);
+    }
+
+    #parts-container tr.part-highlight {
+      background-color: #fff3c4;
+    }
+
+    @media (max-width: 900px) {
+      .levam-main {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Recherche pièces sans VIN (Levam OEM)</h1>
+
+  <div id="levam-status" class="status">
+    Chargement des catalogues en cours...
+  </div>
+
+  <div class="levam-filters">
+    <div>
+      <label for="catalogSelect">Marque :</label>
+      <select id="catalogSelect">
+        <option value="">-- marque --</option>
+      </select>
+    </div>
+
+    <div>
+      <label for="modelSelect">Modèle :</label>
+      <select id="modelSelect" disabled>
+        <option value="">-- modèle --</option>
+      </select>
+    </div>
+
+    <div>
+      <label for="paramsSelect">Paramètres :</label>
+      <select id="paramsSelect" disabled>
+        <option value="">Paramètres choisis automatiquement</option>
+      </select>
+    </div>
+
+    <div>
+      <label for="modificationSelect">Modification / série :</label>
+      <select id="modificationSelect" disabled>
+        <option value="">-- modification --</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="levam-main">
+    <!-- Colonne gauche : Arbre des groupes -->
+    <div>
+      <h2>Arbre des groupes Levam</h2>
+      <div id="tree-container">
+        <!-- rempli dynamiquement par levam-search.js -->
+      </div>
+    </div>
+
+    <!-- Colonne droite : Vue éclatée + pièces + TecDoc -->
+    <div class="levam-detail">
+      <h2>Vue éclatée</h2>
+      <div id="exploded-wrapper">
+        <!-- image + marqueurs -->
+      </div>
+      <div id="exploded-info">
+        <!-- infos véhicule / groupe -->
+      </div>
+
+      <h2>Liste des pièces (Levam)</h2>
+      <div id="parts-container">
+        <!-- tableau des pièces -->
+      </div>
+
+      <h3>Résultats TecDoc pour la pièce sélectionnée</h3>
+      <div id="tecdoc-results">
+        <!-- résultats de /api/tecdoc/search-oe -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Script logique Levam (avec vue éclatée interactive + TecDoc) -->
+  <script src="assets/js/levam-search.js"></script>
+</body>
+</html>

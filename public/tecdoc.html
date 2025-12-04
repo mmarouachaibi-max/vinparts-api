@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recherche par véhicule – TecDoc</title>
+
+  <link rel="stylesheet" href="assets/css/style.css" />
+
+  <style>
+    /* Thème sombre premium type configurateur */
+    body {
+      background: #0f1115;
+      color: #e1e1e1;
+      font-family: Arial, sans-serif;
+    }
+
+    .page-container {
+      max-width: 1400px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+
+    a.back-link {
+      color: #77aaff;
+      text-decoration: none;
+      font-size: 14px;
+      margin-bottom: 10px;
+      display: inline-block;
+    }
+
+    h1 {
+      font-size: 26px;
+      margin-bottom: 20px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .panel {
+      background: #1a1d23;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 25px;
+      border: 1px solid #2a2e36;
+    }
+
+    label {
+      color: #cfcfcf;
+    }
+
+    select {
+      background: #2a2e36;
+      color: #fff;
+      border: 1px solid #3a3f49;
+    }
+
+    .vehicle-info {
+      margin-top: 8px;
+      color: #9ca3af;
+      font-size: 13px;
+    }
+
+    .catalog-columns {
+      display: flex;
+      gap: 25px;
+    }
+
+    .catalog-left,
+    .catalog-right {
+      flex: 1;
+      background: #1a1d23;
+      border-radius: 10px;
+      padding: 20px;
+      border: 1px solid #2a2e36;
+    }
+
+    .category-group {
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #2a2e36;
+    }
+
+    .category-parent {
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 4px;
+      color: #e5e7eb;
+    }
+
+    .category-children {
+      margin-left: 8px;
+    }
+
+    .category-item {
+      background: #22262d;
+      border-color: #323742;
+      color: #ddd;
+    }
+
+    .category-item:hover {
+      background: #2f3942;
+    }
+
+    .category-item.active {
+      background: #3a64ff;
+      border-color: #6a8aff;
+      color: #fff;
+    }
+
+    /* Zone recherche OEM au-dessus de la grille de pièces */
+    .parts-tools {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .parts-tools input {
+      flex: 1 1 240px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #3a3f49;
+      background: #111318;
+      color: #f9fafb;
+    }
+
+    .parts-tools button {
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: 1px solid #3a3f49;
+      background: #2563eb;
+      color: #f9fafb;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .parts-tools button.secondary {
+      background: #374151;
+    }
+
+    .parts-tools button:hover {
+      filter: brightness(1.05);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-container">
+
+    <a href="index.html" class="back-link">← Retour à l'accueil</a>
+
+    <h1>Recherche par véhicule (TecDoc)</h1>
+
+    <!-- FILTRE VEHICULE -->
+    <div class="panel">
+      <h2>Filtrer le véhicule</h2>
+
+      <div class="selectors">
+        <!-- Marque -->
+        <div class="selector">
+          <label for="brandSelect">Marque</label>
+          <select id="brandSelect">
+            <option value="">-- Sélectionner une marque --</option>
+          </select>
+        </div>
+
+        <!-- Modèle -->
+        <div class="selector">
+          <label for="modelSelect">Modèle</label>
+          <select id="modelSelect">
+            <option value="">Sélectionner une marque d'abord</option>
+          </select>
+        </div>
+
+        <!-- Version -->
+        <div class="selector">
+          <label for="vehicleSelect">Version</label>
+          <select id="vehicleSelect">
+            <option value="">Sélectionner un modèle d'abord</option>
+          </select>
+        </div>
+      </div>
+
+      <p id="vehicleInfo" class="vehicle-info">Aucun véhicule sélectionné.</p>
+    </div>
+
+    <!-- 2 COLONNES : CAT + PIECES -->
+    <div class="catalog-columns">
+      <!-- Colonne catégories -->
+      <div class="catalog-left">
+        <h2>Catégories</h2>
+        <div id="categories">
+          <div class="placeholder">
+            Sélectionne d'abord un véhicule pour voir les catégories disponibles.
+          </div>
+        </div>
+      </div>
+
+      <!-- Colonne pièces -->
+      <div class="catalog-right">
+        <h2>Pièces</h2>
+
+        <!-- Recherche OEM / réf croisée -->
+        <div class="parts-tools">
+          <input
+            type="text"
+            id="oemSearchInput"
+            placeholder="Recherche par réf OEM, référence fabricant, etc."
+          />
+          <button id="oemSearchBtn">Rechercher</button>
+          <button id="oemClearBtn" class="secondary">Réinitialiser</button>
+        </div>
+
+        <!-- Grille de pièces -->
+        <div id="parts" class="parts-grid">
+          <div class="placeholder">
+            Clique sur une catégorie pour afficher les pièces TecDoc.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JS TecDoc -->
+  <script src="assets/js/tecdoc.js"></script>
+</body>
+</html>

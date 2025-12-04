@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>VINParts – Recherche par VIN</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f5f5;
+    }
+
+    .page {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 4px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .col-3 {
+      flex: 0 0 30%;
+    }
+
+    .col-4 {
+      flex: 0 0 40%;
+    }
+
+    .col-2 {
+      flex: 0 0 30%;
+    }
+
+    label {
+      font-weight: bold;
+      margin-right: 6px;
+    }
+
+    input[type="text"] {
+      padding: 4px 6px;
+      font-size: 14px;
+      width: 220px;
+    }
+
+    button {
+      padding: 4px 10px;
+      font-size: 13px;
+      border-radius: 3px;
+      border: 1px solid #0078d4;
+      background: #0078d4;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    .small {
+      font-size: 12px;
+      color: #666;
+    }
+
+    /* Section 2 : véhicule identifié */
+    .vehicle-grid {
+      display: grid;
+      grid-template-columns: 1fr 200px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .vehicle-fields div {
+      margin-bottom: 2px;
+      font-size: 14px;
+    }
+
+    .vehicle-img {
+      max-width: 200px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+
+    /* Section 3–5 : arbre, vue éclatée, liste pièces */
+    .tree-container {
+      max-height: 550px;
+      overflow-y: auto;
+      font-size: 13px;
+    }
+
+    .tree-group {
+      font-weight: bold;
+      margin-top: 6px;
+    }
+
+    .tree-sub {
+      margin-left: 12px;
+      margin-top: 2px;
+    }
+
+    .tree-leaf {
+      margin-left: 24px;
+      margin-top: 2px;
+    }
+
+    .tree-leaf button {
+      margin-left: 6px;
+      font-size: 11px;
+      padding: 2px 6px;
+    }
+
+    .exploded-container {
+      min-height: 380px;
+    }
+
+    .exploded-wrapper {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+      border: 1px solid #ddd;
+      background: #fafafa;
+    }
+
+    .exploded-img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .exploded-marker {
+      position: absolute;
+      border: 2px solid rgba(255, 0, 0, 0.8);
+      background: rgba(255, 0, 0, 0.4);
+      color: #fff;
+      font-size: 10px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+
+    .exploded-marker:hover {
+      background: rgba(255, 0, 0, 0.7);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 3px 4px;
+      text-align: left;
+    }
+
+    th {
+      background: #f0f0f0;
+    }
+
+    tr.highlight {
+      background: #ffe5b4 !important;
+    }
+
+    #debug-json {
+      max-height: 200px;
+      overflow: auto;
+      background: #111;
+      color: #0f0;
+      font-size: 11px;
+      padding: 6px;
+      border-radius: 4px;
+    }
+
+    .section-title {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .msg {
+      font-size: 12px;
+      color: #555;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <h1>Recherche de pièces par VIN (Levam)</h1>
+
+  <!-- 1. Recherche VIN -->
+  <div class="card">
+    <div class="section-title">1. Recherche du véhicule</div>
+    <label for="vin-input">VIN :</label>
+    <input type="text" id="vin-input" value="" />
+    <button id="btn-search">Chercher</button>
+    <span id="search-msg" class="small"></span>
+    <div class="small">Les pièces seront chargées après sélection d’un groupe.</div>
+  </div>
+
+  <!-- 2. Véhicule identifié -->
+  <div class="card">
+    <div class="section-title">2. Véhicule identifié</div>
+    <div class="vehicle-grid">
+      <div class="vehicle-fields">
+        <div><strong>Marque :</strong> <span id="veh-mark">-</span></div>
+        <div><strong>Famille :</strong> <span id="veh-family">-</span></div>
+        <div><strong>Modèle :</strong> <span id="veh-model">-</span></div>
+        <div><strong>VIN :</strong> <span id="veh-vin">-</span></div>
+        <div><strong>Modification :</strong> <span id="veh-modif">-</span></div>
+      </div>
+      <div>
+        <img id="veh-image" class="vehicle-img" src="" alt="Photo véhicule" style="display:none;">
+      </div>
+    </div>
+  </div>
+
+  <!-- 3–5. Arbre + vue éclatée + liste pièces -->
+  <div class="card">
+    <div class="section-title">3–5. Arbre des pièces, vue éclatée &amp; liste des pièces</div>
+    <div class="row">
+      <!-- 3. Arbre -->
+      <div class="col-3">
+        <div><strong>3. Arbre des pièces (TreeFullGet)</strong></div>
+        <div id="tree-msg" class="small"></div>
+        <div id="tree-container" class="tree-container"></div>
+      </div>
+
+      <!-- 4. Vue éclatée -->
+      <div class="col-4">
+        <div><strong>4. Vue éclatée / schéma</strong></div>
+        <div id="exploded-info" class="small"></div>
+        <div id="exploded-view" class="exploded-container"></div>
+      </div>
+
+      <!-- 5. Liste des pièces -->
+      <div class="col-2">
+        <div><strong>5. Liste des pièces</strong></div>
+        <div id="parts-msg" class="small"></div>
+        <table id="parts-table">
+          <thead>
+          <tr>
+            <th>#</th>
+            <th>Code pièce</th>
+            <th>Nom</th>
+            <th>Qté</th>
+          </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Debug JSON -->
+  <div class="card">
+    <div class="section-title">Debug JSON Levam (TreeNodePartsGet)</div>
+    <pre id="debug-json">{}</pre>
+  </div>
+</div>
+
+<script>
+  const API_BASE = "http://localhost:3000/api";
+
+  let currentSsd = "";
+  let currentLink = "";
+  let currentVin = "";
+  let currentClient = null;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("btn-search").addEventListener("click", onSearchClick);
+  });
+
+  async function onSearchClick() {
+    const vin = document.getElementById("vin-input").value.trim();
+    if (!vin) {
+      alert("Merci de saisir un VIN.");
+      return;
+    }
+
+    currentVin = vin;
+    setMessage("search-msg", "Recherche VIN en cours…");
+    resetVehicle();
+    resetTree();
+    resetExploded();
+    resetParts();
+
+    try {
+      const url = `${API_BASE}/levam/vin?vin=${encodeURIComponent(vin)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+
+      if (data.error) {
+        setMessage("search-msg", "Erreur Levam VinFind : " + data.error);
+        return;
+      }
+
+      // client + premier modèle
+      currentClient = data.client || null;
+      const model = (data.models && data.models[0]) || null;
+      if (!currentClient || !model) {
+        setMessage("search-msg", "Réponse Levam incomplète (client / models).");
+        return;
+      }
+
+      currentSsd = currentClient.ssd;
+      currentLink = model.link;
+
+      renderVehicleInfo(currentClient, model, data.model_image);
+      setMessage("search-msg", "Véhicule trouvé. Chargement de l'arbre…");
+
+      await loadTree();
+    } catch (e) {
+      console.error(e);
+      setMessage("search-msg", "Erreur lors de la recherche VIN : " + e.message);
+    }
+  }
+
+  function renderVehicleInfo(client, model, modelImage) {
+    document.getElementById("veh-mark").textContent = client.mark || "-";
+    document.getElementById("veh-family").textContent = client.family || "-";
+    document.getElementById("veh-model").textContent = client.model || "-";
+    document.getElementById("veh-vin").textContent = client.vin || currentVin || "-";
+    const modif = (client.modification || model && model["Description of modification"]) || "";
+    document.getElementById("veh-modif").textContent = modif || "-";
+
+    const imgEl = document.getElementById("veh-image");
+    if (modelImage) {
+      imgEl.src = modelImage;
+      imgEl.style.display = "block";
+    } else {
+      imgEl.style.display = "none";
+    }
+  }
+
+  async function loadTree() {
+    if (!currentSsd || !currentLink) {
+      setMessage("tree-msg", "ssd / link manquant, impossible de charger l'arbre.");
+      return;
+    }
+
+    try {
+      const url = `${API_BASE}/levam/tree?ssd=${encodeURIComponent(currentSsd)}&link=${encodeURIComponent(currentLink)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+
+      if (data.error) {
+        setMessage("tree-msg", "Erreur TreeFullGet : " + data.error);
+        return;
+      }
+
+      const tree = data.tree || {};
+      renderTree(tree);
+      setMessage("tree-msg", "Arbre des pièces chargé.");
+    } catch (e) {
+      console.error(e);
+      setMessage("tree-msg", "Erreur de chargement de l'arbre : " + e.message);
+    }
+  }
+
+  function renderTree(tree) {
+    const container = document.getElementById("tree-container");
+    container.innerHTML = "";
+
+    const topKeys = Object.keys(tree).sort();
+    if (!topKeys.length) {
+      container.textContent = "Aucun nœud dans l'arbre.";
+      return;
+    }
+
+    topKeys.forEach((topKey) => {
+      const topNode = tree[topKey];
+      const div = document.createElement("div");
+      div.className = "tree-group";
+      div.textContent = `${topKey} – ${topNode.name || ""}`;
+      container.appendChild(div);
+
+      if (topNode.branch) {
+        renderBranch(container, topNode.branch, [topKey]);
+      }
+    });
+  }
+
+  function renderBranch(container, branch, pathArray) {
+    const keys = Object.keys(branch).sort();
+    keys.forEach((code) => {
+      const node = branch[code];
+
+      if (node.branch) {
+        const d = document.createElement("div");
+        d.className = "tree-sub";
+        d.textContent = `${code} – ${node.name || ""}`;
+        container.appendChild(d);
+        renderBranch(container, node.branch, pathArray.concat(code));
+      }
+
+      if (node.nodes) {
+        node.nodes.forEach((leaf) => {
+          const leafDiv = document.createElement("div");
+          leafDiv.className = "tree-leaf";
+
+          const span = document.createElement("span");
+          span.textContent = `${leaf.node_name} [${leaf.node_id}]`;
+          leafDiv.appendChild(span);
+
+          const btn = document.createElement("button");
+          btn.textContent = "Voir les pièces";
+          btn.addEventListener("click", () => {
+            loadNodeParts(leaf.node_id);
+          });
+          leafDiv.appendChild(btn);
+
+          container.appendChild(leafDiv);
+        });
+      }
+    });
+  }
+
+  async function loadNodeParts(groupId) {
+    if (!currentSsd || !currentLink) {
+      alert("Véhicule non chargé.");
+      return;
+    }
+
+    resetExploded();
+    resetParts();
+    setMessage("exploded-info", "Chargement vue éclatée…");
+    setMessage("parts-msg", "Chargement des pièces…");
+
+    try {
+      const url = `${API_BASE}/levam/tree-node-parts?ssd=${encodeURIComponent(
+        currentSsd
+      )}&link=${encodeURIComponent(currentLink)}&group=${encodeURIComponent(groupId)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+
+      // Debug JSON brut
+      document.getElementById("debug-json").textContent = JSON.stringify(data, null, 2);
+
+      if (data.error) {
+        setMessage("exploded-info", "Erreur TreeNodePartsGet : " + data.error);
+        setMessage("parts-msg", "Erreur TreeNodePartsGet : " + data.error);
+        return;
+      }
+
+      renderExplodedView(data);
+      renderPartsList(data);
+    } catch (e) {
+      console.error(e);
+      setMessage("exploded-info", "Erreur chargement vue éclatée : " + e.message);
+      setMessage("parts-msg", "Erreur chargement pièces : " + e.message);
+    }
+  }
+
+  function renderExplodedView(data) {
+    const container = document.getElementById("exploded-view");
+    container.innerHTML = "";
+
+    const parts = (data && data.parts) || {};
+    const images = parts.image || [];
+    const imgUrl = images[0];
+
+    if (!imgUrl) {
+      setMessage("exploded-info", "Pas d'image schéma pour ce nœud.");
+      return;
+    }
+
+    setMessage("exploded-info", `Schéma : ${parts.part_name || ""}`);
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "exploded-wrapper";
+
+    const img = document.createElement("img");
+    img.src = imgUrl;
+    img.alt = parts.part_name || "Schéma";
+    img.className = "exploded-img";
+    wrapper.appendChild(img);
+
+    // Coordonnées des numéros
+    const coordGroups = parts.coord || [];
+    const coords = coordGroups[0] || [];
+
+    coords.forEach((c) => {
+      const marker = document.createElement("div");
+      marker.className = "exploded-marker";
+      marker.textContent = c.name;
+      marker.style.top = c["margin-top"] + "%";
+      marker.style.left = c["margin-left"] + "%";
+      marker.style.width = c["width"] + "%";
+      marker.style.height = c["height"] + "%";
+      marker.dataset.partNumber = String(c.name);
+
+      marker.addEventListener("click", () => {
+        highlightPartByNumber(String(c.name));
+      });
+
+      wrapper.appendChild(marker);
+    });
+
+    container.appendChild(wrapper);
+  }
+
+  function renderPartsList(data) {
+    const tbody = document.querySelector("#parts-table tbody");
+    tbody.innerHTML = "";
+
+    const parts = (data && data.parts && data.parts.parts) || [];
+    if (!parts.length) {
+      setMessage("parts-msg", "Aucune pièce trouvée pour ce nœud.");
+      return;
+    }
+
+    parts.forEach((pObj, index) => {
+      const s = pObj.standart || {};
+      const tr = document.createElement("tr");
+      tr.dataset.partNumber = String(s.part_number || "");
+
+      const tdIndex = document.createElement("td");
+      tdIndex.textContent = s.part_number || index + 1;
+      tr.appendChild(tdIndex);
+
+      const tdCode = document.createElement("td");
+      tdCode.textContent = s.part_code || "";
+      tr.appendChild(tdCode);
+
+      const tdName = document.createElement("td");
+      tdName.textContent = s.part_name || "";
+      tr.appendChild(tdName);
+
+      const tdQty = document.createElement("td");
+      tdQty.textContent = s.part_quantity || "";
+      tr.appendChild(tdQty);
+
+      tr.addEventListener("click", () => {
+        highlightPartByNumber(String(s.part_number || ""));
+      });
+
+      tbody.appendChild(tr);
+    });
+
+    setMessage("parts-msg", `${parts.length} pièce(s) trouvée(s).`);
+  }
+
+  function highlightPartByNumber(partNumber) {
+    const rows = document.querySelectorAll("#parts-table tbody tr");
+    rows.forEach((r) => {
+      if (r.dataset.partNumber === partNumber) {
+        r.classList.add("highlight");
+        r.scrollIntoView({ block: "nearest" });
+      } else {
+        r.classList.remove("highlight");
+      }
+    });
+  }
+
+  function setMessage(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text || "";
+  }
+
+  function resetVehicle() {
+    document.getElementById("veh-mark").textContent = "-";
+    document.getElementById("veh-family").textContent = "-";
+    document.getElementById("veh-model").textContent = "-";
+    document.getElementById("veh-vin").textContent = "-";
+    document.getElementById("veh-modif").textContent = "-";
+    const imgEl = document.getElementById("veh-image");
+    imgEl.src = "";
+    imgEl.style.display = "none";
+  }
+
+  function resetTree() {
+    document.getElementById("tree-container").innerHTML = "";
+    setMessage("tree-msg", "");
+  }
+
+  function resetExploded() {
+    document.getElementById("exploded-view").innerHTML = "";
+    setMessage("exploded-info", "");
+  }
+
+  function resetParts() {
+    document.querySelector("#parts-table tbody").innerHTML = "";
+    setMessage("parts-msg", "");
+  }
+</script>
+</body>
+</html>
