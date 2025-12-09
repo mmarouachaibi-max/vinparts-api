@@ -1,4 +1,4 @@
-const API_BASE = "/api"; 
+const API_BASE = "https://vinparts-api.onrender.com/api"; 
 let currentVehicleData = null;
 let panzoomInstance = null;
 
@@ -350,4 +350,5 @@ function highlightItem(posId) {
 function sendToPrestashop(ref) {
     const url = `https://vinparts.ch/index.php?controller=search&s=${encodeURIComponent(ref)}`;
     window.open(url, '_blank');
+
 }
