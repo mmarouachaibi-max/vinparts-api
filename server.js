@@ -3,44 +3,39 @@ const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
 const path = require("path");
+const helmet = require("helmet");
+const compression = require("compression");
+const morgan = require("morgan");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 1. CONFIGURATION
+// CONFIG
+app.use(morgan("dev"));
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(compression());
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// 2. CONSTANTES API
 const TECDOC_ENDPOINT = "https://webservice.tecalliance.services/pegasus-3-0/services/TecdocToCatDLB.jsonEndpoint";
 const LEVAM_BASE_URL = "https://api.levam.net/oem/v1";
 const MATEROM_URL = "https://api.materom.ro/api/v1";
-// Note : Les clés sont dans les variables d'environnement de Render
 
-// 3. HELPERS
 function cleanRef(ref) {
     if (!ref) return "";
     return String(ref).replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
 }
 
-async function callLevam(endpoint, params = {}) {
-    try {
-        const finalParams = { api_key: process.env.LEVAM_API_KEY, ...params };
-        const res = await axios.get(`${LEVAM_BASE_URL}${endpoint}`, { params: finalParams });
-        return res.data;
-    } catch (e) {
-        console.error(`Erreur Levam ${endpoint}:`, e.message);
-        throw e;
-    }
-}
-
 async function tecdocHttpPost(payload) {
     try {
-        const res = await axios.post(TECDOC_ENDPOINT, payload, { headers: { "X-Api-Key": process.env.TECDOC_API_KEY } });
+        const res = await axios.post(TECDOC_ENDPOINT, payload, { 
+            headers: { "X-Api-Key": process.env.TECDOC_API_KEY },
+            timeout: 25000 // Timeout long
+        });
         return res.data;
     } catch (e) {
-        console.error("Erreur TecDoc:", e.message);
+        console.error("❌ Erreur TecDoc:", e.message);
         throw e;
     }
 }
@@ -52,129 +47,180 @@ async function callMaterom(endpoint, params = {}) {
                 "Authorization": `Bearer ${process.env.MATEROM_TOKEN || "1816|HOdgVM1HTevulaN9u1RMEEqRgeIUd6hvgUQckIIz"}`,
                 "Accept": "application/json"
             },
-            params: params
+            params: params,
+            timeout: 5000 
         });
         return res.data;
-    } catch (e) {
-        console.error(`[Materom] Erreur:`, e.response?.data || e.message);
-        return [];
-    }
+    } catch (e) { return []; }
 }
 
-// 4. ROUTES API - LEVAM
-app.get("/api/levam/vin", async (req, res) => { try { res.json(await callLevam("/VinFind", { vin: req.query.vin })); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.get("/api/levam/catalogs", async (req, res) => { try { res.json(await callLevam("/CatalogsListGet", {})); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.get("/api/levam/models", async (req, res) => { try { res.json(await callLevam("/ModelsListGet2", req.query)); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.get("/api/levam/vehicle-params", async (req, res) => { try { res.json(await callLevam("/VehicleParamsSet", req.query)); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.get("/api/levam/vehicle-mods", async (req, res) => { try { res.json(await callLevam("/VehicleModificationsGet", req.query)); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.get("/api/levam/tree", async (req, res) => { try { res.json(await callLevam("/TreeFullGet", { ssd: req.query.ssd, link: req.query.link, lang: "fr" })); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.get("/api/levam/parts", async (req, res) => { try { res.json(await callLevam("/PartsGet", { ssd: req.query.ssd, link: req.query.link, group: req.query.group, lang: "fr" })); } catch (e) { res.status(500).json({ error: e.message }); } });
+// MAPPING ROBUSTE (Gère tous les cas de figure)
+function mapArticleData(a) {
+    // Gestion Linkages (Véhicules)
+    let rawLinkages = a.articleLinkages || a.linkages || [];
+    if (!Array.isArray(rawLinkages) && rawLinkages.array) rawLinkages = rawLinkages.array;
 
-// 5. ROUTES API - TECDOC (Structure)
-app.get("/api/tecdoc/brands", async (req, res) => { try { const r = await tecdocHttpPost({ getLinkageTargets: { provider: process.env.TECDOC_PROVIDER_ID, linkageTargetCountry: "CH", lang: "fr", linkageTargetType: "P", perPage: 0, includeMfrFacets: true } }); res.json({ success: true, brands: (r.mfrFacets?.counts || []).map(m => ({ id: m.id, name: m.name })) }); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.get("/api/tecdoc/models", async (req, res) => { try { const r = await tecdocHttpPost({ getLinkageTargets: { provider: process.env.TECDOC_PROVIDER_ID, linkageTargetCountry: "CH", lang: "fr", linkageTargetType: "P", mfrIds: parseInt(req.query.mfrId), perPage: 0, includeVehicleModelSeriesFacets: true } }); res.json({ success: true, models: (r.vehicleModelSeriesFacets?.counts || []).map(m => ({ id: m.id, name: m.name })) }); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.get("/api/tecdoc/vehicles", async (req, res) => { try { const r = await tecdocHttpPost({ getLinkageTargets: { provider: process.env.TECDOC_PROVIDER_ID, linkageTargetCountry: "CH", lang: "fr", linkageTargetType: "P", mfrIds: parseInt(req.query.mfrId), vehicleModelSeriesIds: parseInt(req.query.modelSeriesId), perPage: 100 } }); res.json({ success: true, vehicles: (r.linkageTargets || []).map(v => ({ linkageTargetId: v.linkageTargetId, description: v.description, beginYearMonth: v.beginYearMonth, endYearMonth: v.endYearMonth })) }); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.get("/api/tecdoc/assembly-groups", async (req, res) => { try { const r = await tecdocHttpPost({ getArticles: { provider: process.env.TECDOC_PROVIDER_ID, articleCountry: "CH", lang: "fr", assemblyGroupFacetOptions: { enabled: true, assemblyGroupType: "P", includeCompleteTree: true }, linkageTargetType: "P", linkageTargetId: parseInt(req.query.vehicleId) } }); res.json({ success: true, groups: (r.assemblyGroupFacets?.counts || []).map(g => ({ assemblyGroupNodeId: g.assemblyGroupNodeId, assemblyGroupName: g.assemblyGroupName, parentNodeId: g.parentNodeId })) }); } catch (e) { res.status(500).json({ error: e.message }); } });
-app.get("/api/tecdoc/parts", async (req, res) => { try { const r = await tecdocHttpPost({ getArticles: { provider: process.env.TECDOC_PROVIDER_ID, articleCountry: "CH", lang: "fr", perPage: 20, assemblyGroupNodeIds: parseInt(req.query.groupId), linkageTargetType: "P", linkageTargetId: parseInt(req.query.vehicleId), includeAll: true } }); res.json({ success: true, articles: r.articles || [] }); } catch (e) { res.status(500).json({ error: e.message }); } });
+    // Gestion Identité
+    const ref = a.articleNumber || a.articleNo || "Inconnu";
+    const brand = a.mfrName || a.brandName || "Marque Inconnue";
+    const name = a.genericArticles?.[0]?.genericArticleDescription || a.articleName || "Pièce Auto";
 
-// 6. ROUTE MATEROM (PRIX)
+    // Gestion Images (Priorité HD -> SD -> Thumbnails)
+    let img = null;
+    let fullImg = null;
+    
+    // Essai 1 : Liste standard
+    let imagesList = a.images || [];
+    if (a.images && a.images.array) imagesList = a.images.array;
+
+    if (imagesList.length > 0) {
+        img = imagesList[0].imageURL200;
+        fullImg = imagesList[0].imageURL800 || imagesList[0].imageURL400;
+    } 
+    // Essai 2 : Thumbnails (parfois utilisé par TecDoc pour les vieux articles)
+    else if (a.thumbnails && (a.thumbnails.length > 0 || a.thumbnails.array)) {
+        let thumbs = a.thumbnails.array || a.thumbnails;
+        if(thumbs.length > 0) {
+            img = thumbs[0].imageURL200;
+            fullImg = thumbs[0].imageURL800;
+        }
+    }
+
+    // Gestion Critères
+    let rawCriteria = a.articleCriteria || [];
+    if (!Array.isArray(rawCriteria) && rawCriteria.array) rawCriteria = rawCriteria.array;
+
+    // Gestion OEM
+    let rawOems = a.oemNumbers || [];
+    if (!Array.isArray(rawOems) && rawOems.array) rawOems = rawOems.array;
+
+    // Gestion EAN
+    let eans = [];
+    if (a.gtins && a.gtins.array) eans = a.gtins.array;
+    else if (Array.isArray(a.gtins)) eans = a.gtins;
+    else if (a.eanNumber) eans = [a.eanNumber];
+
+    return {
+        id: a.legacyArticleId || a.articleId,
+        ref: ref,
+        brand: brand,
+        name: name,
+        img: img,
+        fullImg: fullImg,
+        
+        oems: rawOems.map(o => `${o.mfrName}: ${o.articleNumber}`),
+        eans: eans,
+        
+        criteria: rawCriteria.map(c => ({
+            desc: c.criteriaDescription,
+            val: c.formattedValue
+        })),
+
+        vehicles: rawLinkages.slice(0, 100).map(v => ({
+            name: v.linkageTargetDescription,
+            year: v.linkageTargetBeginYearMonth ? String(v.linkageTargetBeginYearMonth).substring(0,4) : ""
+        }))
+    };
+}
+
+// ROUTES API
+
+app.get("/api/levam/vin", async (req, res) => { try { const r = await axios.get(`${LEVAM_BASE_URL}/VinFind`, { params: { api_key: process.env.LEVAM_API_KEY, vin: req.query.vin } }); res.json(r.data); } catch (e) { res.status(500).json({ error: e.message }); } });
+
+app.get("/api/levam/:action", async (req, res) => {
+    try {
+        const action = req.params.action;
+        const r = await axios.get(`${LEVAM_BASE_URL}/${action}`, { params: { api_key: process.env.LEVAM_API_KEY, ...req.query } });
+        res.json(r.data);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get("/api/materom/check", async (req, res) => {
     const term = req.query.ref;
     const brandFilter = req.query.brand;
-    if (!term) return res.json({ success: false, error: "Term manquant" });
+    if (!term || term === "undefined") return res.json({ success: false, found: false });
 
     try {
         const results = await callMaterom("/part_search/global", { term: term });
         if (!results || !Array.isArray(results) || results.length === 0) return res.json({ success: false, found: false });
 
         let match = null;
-        if (brandFilter) {
-            match = results.find(item => item.article?.manufacturer?.name?.toLowerCase().includes(brandFilter.toLowerCase()));
-        }
+        if (brandFilter) match = results.find(i => i.article?.manufacturer?.name?.toLowerCase().includes(brandFilter.toLowerCase()));
         if (!match) match = results[0];
 
         const art = match.article;
         if (!art || !art.pricing) return res.json({ success: false, found: false });
 
         let totalStock = 0;
-        if (art.pricing.available_plants) {
-            art.pricing.available_plants.forEach(plant => totalStock += (plant.maximum_order_quantity || 0));
-        } else if (art.pricing.delivery === 'stoc') {
-            totalStock = 10;
-        }
+        if (art.pricing.available_plants) art.pricing.available_plants.forEach(p => totalStock += (p.maximum_order_quantity || 0));
+        else if (art.pricing.delivery === 'stoc') totalStock = 10;
 
-        res.json({
-            success: true,
-            found: true,
-            price: art.pricing.price,
-            currency: art.pricing.currency,
-            stock: totalStock,
-            delivery: art.pricing.delivery || "Sur commande",
-            sku: art.number,
-            brand: art.manufacturer.name
-        });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+        res.json({ success: true, found: true, price: art.pricing.price, currency: art.pricing.currency, stock: totalStock, delivery: art.pricing.delivery || "Sur commande", sku: art.number, brand: art.manufacturer.name });
+    } catch (e) { res.json({ success: false, found: false }); }
 });
 
-// 7. ROUTE SEARCH OE (STRICTE)
+// ROUTE SEARCH OE (VERSION PERMISSIVE)
 app.get("/api/tecdoc/search-oe", async (req, res) => {
     const rawOe = (req.query.oe || "").trim();
     const cleanOeNumber = cleanRef(rawOe);
-    if (!cleanOeNumber || cleanOeNumber.length < 3) return res.json({ success: false, error: "Ref courte" });
+
+    if (!cleanOeNumber || cleanOeNumber.length < 2) return res.json({ success: false, error: "Ref courte" });
 
     try {
-        const body = await tecdocHttpPost({ 
-            getArticles: { provider: process.env.TECDOC_PROVIDER_ID, articleCountry: "CH", lang: "fr", perPage: 50, page: 1, searchQuery: rawOe, searchType: 99, includeAll: true } 
-        });
-        
+        console.log(`🔎 Recherche OE: ${cleanOeNumber}`);
+
+        const payload = { 
+            getArticles: { 
+                provider: process.env.TECDOC_PROVIDER_ID, 
+                articleCountry: "CH", 
+                lang: "fr", 
+                perPage: 50, 
+                page: 1, 
+                searchQuery: cleanOeNumber, 
+                searchType: 10, // Any number
+                
+                // ON DEMANDE TOUT, MAIS ON NE FILTRE PAS LE TYPE DE VÉHICULE
+                includeAll: true, 
+                includeArticleCriteria: true,
+                includeArticleLinkages: true 
+                // J'ai supprimé "linkageTargetType: P" -> C'est ça qui bloquait votre pièce !
+            } 
+        };
+
+        const body = await tecdocHttpPost(payload);
         let articles = body.articles || [];
-        const validArticles = articles.filter(a => {
-            const articleRefClean = cleanRef(a.articleNumber);
-            if (articleRefClean === cleanOeNumber) return true;
-            if (a.oemNumbers && a.oemNumbers.length > 0) return a.oemNumbers.some(o => cleanRef(o.articleNumber) === cleanOeNumber);
-            return false;
-        });
 
-        let finalList = validArticles;
-        if (finalList.length === 0 && articles.length > 0) finalList = articles.slice(0, 5).map(a => { a.isFuzzy = true; return a; });
+        console.log(`✅ ${articles.length} articles trouvés.`);
 
-        const simplified = finalList.map(a => ({
-            id: a.legacyArticleId || a.articleId,
-            ref: a.articleNumber,
-            brand: a.mfrName,
-            name: a.genericArticles?.[0]?.genericArticleDescription || "Pièce Auto",
-            img: a.images?.[0]?.imageURL200,
-            isFuzzy: a.isFuzzy || false
-        }));
-        res.json({ success: true, articles: simplified });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+        // AUCUN FILTRE JS.
+        // Si TecDoc renvoie quelque chose, on l'affiche. Point barre.
+        
+        const mappedArticles = articles.map(a => mapArticleData(a));
+        const validArticles = mappedArticles.filter(a => a.ref !== "Inconnu");
+
+        res.json({ success: true, articles: validArticles });
+
+    } catch (e) { 
+        console.error(e);
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
-// 8. NOUVELLE ROUTE : RECHERCHE UNIVERSELLE (Large)
 app.get("/api/tecdoc/search-any", async (req, res) => {
     const term = (req.query.term || "").trim();
-    if (!term || term.length < 2) return res.json({ success: false, error: "Recherche trop courte" });
-
+    const page = parseInt(req.query.page) || 1; 
     try {
-        const body = await tecdocHttpPost({ 
-            getArticles: { provider: process.env.TECDOC_PROVIDER_ID, articleCountry: "CH", lang: "fr", perPage: 50, page: 1, searchQuery: term, searchType: 99, includeAll: true } 
-        });
-        
+        const payload = { 
+            getArticles: { 
+                provider: process.env.TECDOC_PROVIDER_ID, articleCountry: "CH", lang: "fr", perPage: 50, page: page, searchQuery: term, searchType: 99, includeAll: true, includeArticleCriteria: true, includeArticleLinkages: true 
+            } 
+        };
+        const body = await tecdocHttpPost(payload);
         let articles = body.articles || [];
-        const simplified = articles.map(a => ({
-            id: a.legacyArticleId || a.articleId,
-            ref: a.articleNumber,
-            brand: a.mfrName,
-            name: a.genericArticles?.[0]?.genericArticleDescription || "Pièce Auto",
-            img: a.images?.[0]?.imageURL200,
-            oem: (a.oemNumbers && a.oemNumbers.length > 0) ? a.oemNumbers[0].articleNumber : null
-        }));
-        
-        res.json({ success: true, articles: simplified });
+        res.json({ success: true, total: body.totalMatchingArticles || 0, page: page, articles: articles.map(a => mapArticleData(a)) });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 9. CATCH ALL
 app.get(/(.*)/, (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
-app.listen(PORT, () => console.log(`>>> SERVEUR PRET`));
+app.listen(PORT, () => console.log(`>>> SERVEUR PRET SUR LE PORT ${PORT}`));
