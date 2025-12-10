@@ -9,25 +9,162 @@ document.addEventListener("DOMContentLoaded", () => {
     initGlobalSearch();
 });
 
-// UI
-function setStatus(msg, type = "info") {
-    const el = document.getElementById("search-status");
-    if (el) el.innerHTML = `<div class="alert alert-${type} mt-3 fw-bold shadow-sm">${msg}</div>`;
+// ... (Fonctions initVinSearch, initManualLevamSearch, initGlobalSearch, initRefSearch, startCatalog, etc. -> GARDEZ LES MÊMES QUE PRÉCÉDEMMENT, ELLES FONCTIONNENT)
+// JE COLLE ICI UNIQUEMENT LA NOUVELLE LOGIQUE D'AFFICHAGE "PRO" ET LA MODALE
+
+// Fonction principale d'ouverture de la modale PRO
+async function showTecDocOffers(oeCode) {
+    const modal = new bootstrap.Modal(document.getElementById('productModal'));
+    const mb = document.getElementById('modal-body');
+    const mt = document.getElementById('modal-title');
+    
+    mt.textContent = `Résultats pour ${oeCode}`;
+    mb.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-danger" style="width: 3rem; height: 3rem;"></div><br><span class="text-muted mt-3 d-block fw-bold">Analyse technique en cours...</span></div>';
+    modal.show();
+
+    try {
+        const res = await fetch(`${API_BASE}/tecdoc/search-oe?oe=${encodeURIComponent(oeCode)}`);
+        const data = await res.json();
+        
+        if(!data.articles || data.articles.length === 0) { 
+            mb.innerHTML = '<div class="alert alert-warning m-4">Aucune pièce compatible trouvée.</div>'; return; 
+        }
+
+        // Récupération des prix
+        const articles = await Promise.all(data.articles.map(async (a) => {
+            try { 
+                const p = await (await fetch(`${API_BASE}/materom/check?ref=${encodeURIComponent(a.ref)}&brand=${encodeURIComponent(a.brand)}`)).json();
+                return { ...a, price: p }; 
+            } catch { return { ...a, price: { found: false } }; }
+        }));
+
+        // Construction du HTML Pro
+        mb.innerHTML = `<div class="container-fluid p-0">${articles.map(renderProProductCard).join('<hr class="my-4">')}</div>`;
+
+    } catch(e) { mb.innerHTML = `<div class="alert alert-danger m-4">${e.message}</div>`; }
 }
 
-function updateGarage(title, subtitle) {
-    document.getElementById('section-garage').classList.remove('d-none');
-    document.getElementById('section-search').classList.add('d-none');
-    document.getElementById('section-catalog').classList.remove('d-none');
-    document.getElementById('tree-column').classList.remove('d-none');
-    document.getElementById('parts-column').className = "col-lg-9";
-    document.getElementById('garage-vehicle-name').textContent = title;
-    document.getElementById('garage-vehicle-details').textContent = subtitle;
+// LE TEMPLATE HTML "DISTRIAUTO STYLE"
+function renderProProductCard(a) {
+    // 1. Gestion Prix & Stock
+    let priceBlock = `
+        <div class="bg-light p-3 rounded text-center h-100 d-flex flex-column justify-content-center">
+            <div class="text-muted small mb-2">Indisponible</div>
+            <button class="btn btn-secondary btn-sm w-100" disabled>Rupture</button>
+        </div>`;
+
+    if (a.price && a.price.found && a.price.price > 0) {
+        const price = (a.price.currency === 'RON' ? (a.price.price * 0.19) : a.price.price).toFixed(2);
+        const inStock = a.price.stock > 0;
+        const color = inStock ? 'success' : 'danger';
+        const txt = inStock ? 'En stock' : 'Sur commande';
+        
+        priceBlock = `
+        <div class="border p-3 rounded shadow-sm h-100" style="background-color:#f8f9fa;">
+            <div class="fs-2 fw-bold text-danger text-center mb-0">${price} CHF</div>
+            <div class="text-${color} fw-bold text-center mb-3 small"><i class="fa-solid fa-circle"></i> ${txt}</div>
+            
+            <div class="d-grid gap-2">
+                ${inStock ? `<button class="btn btn-danger fw-bold py-2" onclick="sendToPrestashop('${a.ref}')"><i class="fa-solid fa-cart-shopping me-2"></i> AJOUTER</button>` : ''}
+                <button class="btn btn-outline-dark btn-sm" onclick="alert('Devis demandé')">Demander un devis</button>
+            </div>
+            
+            <div class="mt-3 pt-3 border-top text-muted small">
+                <div class="d-flex justify-content-between"><span>Expédition :</span> <strong>24/48h</strong></div>
+                <div class="d-flex justify-content-between"><span>Garantie :</span> <strong>2 ans</strong></div>
+            </div>
+        </div>`;
+    }
+
+    // 2. Caractéristiques (Tableau strié)
+    let specs = a.criteria.slice(0, 8).map(c => `
+        <tr>
+            <td class="text-muted py-1" style="width:40%">${c.desc}</td>
+            <td class="fw-bold py-1 text-dark">${c.val}</td>
+        </tr>`).join('');
+
+    // 3. Contenu du Kit (Images + Liste)
+    let kitContent = '';
+    if (a.components && a.components.length > 0) {
+        kitContent = `
+        <div class="mt-4">
+            <h6 class="fw-bold border-bottom pb-2 mb-3">Contenu de l'ensemble</h6>
+            <div class="row g-3">
+                ${a.components.map(c => `
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center border rounded p-2 bg-white">
+                            <div class="me-3 text-secondary fw-bold">x${c.qty}</div>
+                            <div>
+                                <div class="small fw-bold text-dark">${c.name}</div>
+                                <div class="small text-muted">Réf: ${c.ref}</div>
+                            </div>
+                        </div>
+                    </div>`).join('')}
+            </div>
+        </div>`;
+    }
+
+    // 4. Véhicules (Liste scrollable)
+    let vehList = (a.vehicles && a.vehicles.length > 0) 
+        ? `<ul class="list-group list-group-flush small" style="max-height: 200px; overflow-y: auto;">${a.vehicles.map(v => `<li class="list-group-item py-1">${v.name} <span class="text-muted ms-1">${v.year}</span></li>`).join('')}</ul>`
+        : '<div class="text-muted fst-italic p-2">Non spécifié</div>';
+
+    // 5. Structure Globale
+    return `
+    <div class="product-pro-card py-2">
+        <!-- Header : Marque & Ref -->
+        <div class="d-flex align-items-center mb-3">
+            <h4 class="mb-0 fw-bold text-primary me-3">${a.brand}</h4>
+            <span class="badge bg-dark fs-6">${a.ref}</span>
+            <div class="ms-auto small text-muted">EAN: ${a.eans.join(', ') || 'N/A'}</div>
+        </div>
+
+        <div class="row g-4">
+            <!-- COL 1 : IMAGE -->
+            <div class="col-md-4 text-center">
+                <div class="bg-white border rounded p-3 d-flex align-items-center justify-content-center" style="height: 250px;">
+                    ${a.img ? `<img src="${a.img}" class="img-fluid" style="max-height: 100%; max-width: 100%; cursor: zoom-in;" onclick="window.open('${a.fullImg || a.img}')">` : '<i class="fa-solid fa-image fa-3x text-light"></i>'}
+                </div>
+            </div>
+
+            <!-- COL 2 : SPECS -->
+            <div class="col-md-5">
+                <h6 class="fw-bold text-uppercase small text-muted mb-2">Caractéristiques</h6>
+                <table class="table table-sm table-striped small mb-0"><tbody>${specs}</tbody></table>
+                
+                ${a.oems && a.oems.length > 0 ? `
+                <div class="mt-3">
+                    <span class="badge bg-light text-secondary border">OEM</span>
+                    <span class="small text-muted ms-1 text-truncate d-inline-block" style="max-width: 250px; vertical-align: middle;">${a.oems.slice(0,3).join(', ')}...</span>
+                </div>` : ''}
+            </div>
+
+            <!-- COL 3 : ACHAT -->
+            <div class="col-md-3">
+                ${priceBlock}
+            </div>
+        </div>
+
+        <!-- SECTION BASSE : ONGLETS -->
+        <div class="mt-4">
+            <ul class="nav nav-tabs" role="tablist">
+                ${a.components && a.components.length > 0 ? `<li class="nav-item"><a class="nav-link active fw-bold small" data-bs-toggle="tab" href="#tab-kit-${a.id}">Contenu du Kit</a></li>` : ''}
+                <li class="nav-item"><a class="nav-link ${(!a.components || a.components.length===0)?'active':''} fw-bold small" data-bs-toggle="tab" href="#tab-veh-${a.id}">Véhicules Compatibles</a></li>
+            </ul>
+            
+            <div class="tab-content border border-top-0 p-3 bg-light">
+                ${a.components && a.components.length > 0 ? `<div class="tab-pane fade show active" id="tab-kit-${a.id}">${kitContent}</div>` : ''}
+                <div class="tab-pane fade ${(!a.components || a.components.length===0)?'show active':''}" id="tab-veh-${a.id}">
+                    ${vehList}
+                </div>
+            </div>
+        </div>
+    </div>`;
 }
 
-window.resetSearch = function() { location.reload(); }
+// ... (Gardez les fonctions initVinSearch, initManualLevamSearch, renderPartsList, sendToPrestashop telles quelles) ...
+// Je remets juste les fonctions essentielles pour que le copier-coller fonctionne du premier coup
 
-// 1. RECHERCHE VIN
 function initVinSearch() {
     const btn = document.getElementById('btn-search-vin');
     if (!btn) return;
@@ -45,7 +182,6 @@ function initVinSearch() {
     });
 }
 
-// 2. MANUEL
 function initManualLevamSearch() {
     fetch(`${API_BASE}/levam/CatalogsListGet?type=0&lang=fr`).then(r => r.json()).then(d => {
         const sel = document.getElementById('brandSelect');
@@ -54,7 +190,6 @@ function initManualLevamSearch() {
             d.catalogs.forEach(c => sel.add(new Option(c.name, c.catalog_code)));
         }
     });
-
     const bs = document.getElementById('brandSelect');
     if(bs) bs.addEventListener('change', function() {
         const cat = this.value;
@@ -82,7 +217,6 @@ function initManualLevamSearch() {
             }
         });
     });
-
     const ms = document.getElementById('modelSelect');
     if(ms) ms.addEventListener('change', async function() {
         const cat = document.getElementById('brandSelect').value;
@@ -121,7 +255,6 @@ function initManualLevamSearch() {
             } else { vs.innerHTML = '<option>Erreur</option>'; }
         } catch(e) { console.error(e); vs.innerHTML = '<option>Erreur</option>'; }
     });
-
     const vs = document.getElementById('vehicleSelect');
     if(vs) vs.addEventListener('change', function() {
         const ssd = this.options[this.selectedIndex].dataset.ssd;
@@ -138,23 +271,7 @@ function initGlobalSearch() {
     const btn = document.getElementById('btn-global-search');
     const doSearch = async (term) => {
         if (!term || term.length < 2) { alert("2 caractères min."); return; }
-        document.getElementById('section-garage').classList.add('d-none');
-        document.getElementById('section-search').classList.add('d-none');
-        document.getElementById('section-catalog').classList.remove('d-none');
-        document.getElementById('tree-column').classList.add('d-none');
-        document.getElementById('parts-column').className = "col-12";
-        document.getElementById('exploded-view-container').classList.add('d-none');
-        const grid = document.getElementById('parts-grid');
-        grid.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-danger"></div><br>Recherche...</div>';
-        document.getElementById('category-title').textContent = `Résultats: "${term}"`;
-        try {
-            const res = await fetch(`${API_BASE}/tecdoc/search-any?term=${encodeURIComponent(term)}`);
-            const data = await res.json();
-            if (!data.success || !data.articles || data.articles.length === 0) {
-                grid.innerHTML = '<div class="alert alert-warning text-center">Aucun résultat.</div>'; return;
-            }
-            renderRichResultsList(data.articles);
-        } catch (e) { grid.innerHTML = `<div class="alert alert-danger">${e.message}</div>`; }
+        showTecDocOffers(term); // On utilise directement la modale PRO pour le résultat
     };
     if(btn) btn.addEventListener('click', () => doSearch(desktopInput.value));
     if(desktopInput) desktopInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') doSearch(desktopInput.value); });
@@ -166,133 +283,10 @@ function initRefSearch() {
     const triggerSearch = async () => {
         const term = document.getElementById('ref-input').value.trim();
         if (!term || term.length < 2) return setStatus("2 caractères min.", "warning");
-        document.getElementById('global-search-input').value = term; 
-        document.getElementById('btn-global-search').click();
+        showTecDocOffers(term);
     };
     btn.addEventListener('click', triggerSearch);
     document.getElementById('ref-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') triggerSearch(); });
-}
-
-// RENDU
-async function renderRichResultsList(articles) {
-    const grid = document.getElementById('parts-grid');
-    grid.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-danger"></div><br>Prix & Stocks...</div>';
-    const articlesWithPrice = await Promise.all(articles.map(async (a) => {
-        if(!a.ref || a.ref === "Inconnu") return { ...a, materom: { found: false } };
-        try { 
-            const priceData = await (await fetch(`${API_BASE}/materom/check?ref=${encodeURIComponent(a.ref)}&brand=${encodeURIComponent(a.brand)}`)).json();
-            return { ...a, materom: priceData }; 
-        } catch { return { ...a, materom: { found: false } }; }
-    }));
-    let html = `<div class="mb-3"><button class="btn btn-secondary btn-sm shadow-sm" onclick="location.reload()">Retour</button></div><div class="list-group">`;
-    html += articlesWithPrice.map((a, index) => buildRichRow(a, index)).join('');
-    html += `</div>`;
-    grid.innerHTML = html;
-}
-
-// CONSTRUCTION LIGNE AVEC FICHE TECHNIQUE COMPLÈTE
-function buildRichRow(a, index) {
-    let priceHtml = '<span class="badge bg-light text-dark border">Sur devis</span>';
-    let btnHtml = `<button class="btn btn-outline-secondary btn-sm" disabled>Indisponible</button>`;
-    if (a.materom && a.materom.found && a.materom.price > 0) {
-        const priceCHF = (a.materom.currency === 'RON' ? (a.materom.price * 0.19) : a.materom.price).toFixed(2);
-        const inStock = a.materom.stock > 0;
-        priceHtml = `<div class="text-end"><div class="fs-5 fw-bold text-danger">${priceCHF} CHF</div><div class="small ${inStock ? "text-success" : "text-danger"} fw-bold">${inStock ? "En stock" : "Rupture"}</div></div>`;
-        if(inStock) btnHtml = `<button class="btn btn-danger btn-sm fw-bold shadow-sm px-3" onclick="sendToPrestashop('${a.ref}')"><i class="fa-solid fa-cart-shopping me-1"></i></button>`;
-    }
-
-    // --- CONSTRUCTION FICHE TECHNIQUE COMPLÈTE ---
-    
-    // 1. Critères Physiques
-    let critHtml = (a.criteria && a.criteria.length > 0) 
-        ? a.criteria.map(c => `<tr><td class="text-secondary small" style="width:40%">${c.desc}</td><td class="fw-bold small">${c.val}</td></tr>`).join('') 
-        : `<tr><td class="text-muted small">Non spécifié</td></tr>`;
-
-    // 2. Codes EAN & Trade (Affichage Propre)
-    let extraInfos = '';
-    if(a.eans && a.eans.length > 0) extraInfos += `<div class="mb-2"><span class="badge bg-light text-dark border me-1">EAN</span> <span class="small text-muted">${a.eans.join(', ')}</span></div>`;
-    if(a.trade && a.trade.length > 0) extraInfos += `<div class="mb-2"><span class="badge bg-light text-dark border me-1">Ref.</span> <span class="small text-muted">${a.trade.join(', ')}</span></div>`;
-
-    // 3. OEM (Numéros constructeurs)
-    let oemHtml = '';
-    if(a.oems && a.oems.length > 0) {
-        oemHtml = `<div class="mt-3"><h6 class="fw-bold small text-uppercase text-muted border-bottom pb-1">Numéros OEM</h6><div class="small text-muted" style="max-height:100px;overflow-y:auto;">${a.oems.join('<br>')}</div></div>`;
-    }
-
-    // 4. Véhicules
-    let vehRows = (a.vehicles && a.vehicles.length > 0) 
-        ? a.vehicles.map(v => `<li class="list-group-item px-0 py-1 d-flex justify-content-between"><span>${v.name}</span><span class="badge bg-light text-dark border">${v.year||''}</span></li>`).join('') 
-        : `<li class="list-group-item text-muted fst-italic">Non spécifié</li>`;
-
-    return `
-    <div class="list-group-item p-3 border-bottom action-hover-effect">
-        <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
-            <div class="d-flex align-items-start gap-3" style="flex: 1; min-width: 280px;">
-                <div class="position-relative bg-white border rounded p-1 d-flex align-items-center justify-content-center" style="width:80px; height:80px;">
-                    ${a.img ? `<img src="${a.img}" class="img-fluid" onclick="window.open('${a.fullImg || a.img}', '_blank')" style="cursor:zoom-in">` : '<i class="fa-solid fa-image text-muted fs-4"></i>'}
-                </div>
-                <div>
-                    <h6 class="mb-1 fw-bold text-dark">${a.brand} <span class="text-muted small">${a.ref}</span></h6>
-                    <div class="text-secondary small mb-2 text-truncate" style="max-width:250px;">${a.name}</div>
-                    <button class="btn btn-link btn-sm p-0 text-decoration-none small fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#details-${index}"><i class="fa-solid fa-plus-circle"></i> Fiche Technique & Auto</button>
-                </div>
-            </div>
-            <div class="d-flex align-items-center gap-3 justify-content-end ms-auto" style="min-width: 180px;">${priceHtml} ${btnHtml}</div>
-        </div>
-        <div class="collapse mt-3" id="details-${index}">
-            <div class="card border-0 bg-light rounded-3">
-                <div class="card-header bg-transparent border-bottom-0 p-2">
-                    <ul class="nav nav-pills nav-fill card-header-tabs" role="tablist">
-                        <li class="nav-item"><button class="nav-link active py-1 small" data-bs-toggle="tab" data-bs-target="#tab-tech-${index}">Caractéristiques</button></li>
-                        <li class="nav-item"><button class="nav-link py-1 small" data-bs-toggle="tab" data-bs-target="#tab-veh-${index}">Compatibilité (${a.vehicles ? a.vehicles.length : 0})</button></li>
-                    </ul>
-                </div>
-                <div class="card-body p-3 pt-2">
-                    <div class="tab-content">
-                        <div class="tab-pane fade show active" id="tab-tech-${index}">
-                            ${extraInfos}
-                            <table class="table table-sm table-borderless mb-0 small"><tbody>${critHtml}</tbody></table>
-                            ${oemHtml}
-                        </div>
-                        <div class="tab-pane fade" id="tab-veh-${index}"><ul class="list-group list-group-flush small" style="max-height: 300px; overflow-y: auto;">${vehRows}</ul></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>`;
-}
-
-// 5. MODALE PRIX (Même affichage enrichi)
-async function showTecDocOffers(oeCode) {
-    event.stopPropagation();
-    const modal = new bootstrap.Modal(document.getElementById('productModal'));
-    document.getElementById('modal-title').textContent = `Compatibilités pour OE ${oeCode}`;
-    const mb = document.getElementById('modal-body');
-    mb.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-danger"></div><br><span class="text-muted mt-2 d-block">Recherche TecDoc & Prix...</span></div>';
-    modal.show();
-
-    try {
-        const res = await fetch(`${API_BASE}/tecdoc/search-oe?oe=${encodeURIComponent(oeCode)}`);
-        const data = await res.json();
-        
-        if(!data.articles || data.articles.length === 0) { 
-            mb.innerHTML = '<div class="alert alert-warning m-4">Aucune pièce compatible trouvée.</div>'; return; 
-        }
-
-        const articlesWithPrice = await Promise.all(data.articles.map(async (a) => {
-            if(!a.ref || a.ref === "Inconnu") return { ...a, materom: { found: false } };
-            try { 
-                const priceData = await (await fetch(`${API_BASE}/materom/check?ref=${encodeURIComponent(a.ref)}&brand=${encodeURIComponent(a.brand)}`)).json();
-                return { ...a, materom: priceData }; 
-            } catch { return { ...a, materom: { found: false } }; }
-        }));
-
-        let html = `<div class="list-group list-group-flush">`;
-        html += articlesWithPrice.map((a, index) => buildRichRow(a, 'modal-' + index)).join('');
-        html += `</div>`;
-        mb.innerHTML = html;
-
-    } catch(e) { mb.innerHTML = `<div class="alert alert-danger m-4">${e.message}</div>`; }
 }
 
 function startCatalog(ssd, link, title, subtitle) {
