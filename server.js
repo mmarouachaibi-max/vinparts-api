@@ -53,48 +53,51 @@ async function callMaterom(endpoint, params = {}) {
     } catch (e) { return []; }
 }
 
-// --- MAPPING PROFESSIONNEL ---
+// --- MAPPING STANDARD (Celui qui marche) ---
 function mapArticleData(a) {
     // Images
     let img = null;
-    let imagesList = a.images || (a.images && a.images.array) || [];
-    if (!Array.isArray(imagesList) && a.images && a.images.array) imagesList = a.images.array;
-    if (imagesList.length > 0) img = imagesList[0].imageURL800 || imagesList[0].imageURL400 || imagesList[0].imageURL200;
+    let fullImg = null;
+    let imagesList = a.images || [];
+    
+    // Sécurité structure images
+    if (!Array.isArray(imagesList) && imagesList.array) imagesList = imagesList.array;
 
-    // Critères
-    let criteriaList = a.articleCriteria || [];
-    if (!Array.isArray(criteriaList) && a.articleCriteria && a.articleCriteria.array) criteriaList = a.articleCriteria.array;
+    if (imagesList.length > 0) {
+        img = imagesList[0].imageURL200;
+        fullImg = imagesList[0].imageURL800 || imagesList[0].imageURL400;
+    }
 
-    // Linkages (Véhicules)
+    // Contenu du Kit (Parts)
+    let rawParts = a.articleParts || [];
+    if (!Array.isArray(rawParts) && rawParts.array) rawParts = rawParts.array;
+
+    // Linkages
     let rawLinkages = a.articleLinkages || a.linkages || [];
     if (!Array.isArray(rawLinkages) && rawLinkages.array) rawLinkages = rawLinkages.array;
 
-    // Parts (Contenu du kit)
-    let rawParts = a.articleParts || [];
-    if (!Array.isArray(rawParts) && a.articleParts && a.articleParts.array) rawParts = a.articleParts.array;
-
     return {
         id: a.legacyArticleId || a.articleId,
-        ref: a.articleNumber || a.articleNo || "Inconnu",
-        brand: a.mfrName || a.brandName || "Marque Inconnue",
-        name: a.genericArticles?.[0]?.genericArticleDescription || a.articleName || "Pièce Auto",
+        ref: a.articleNumber,
+        brand: a.mfrName,
+        name: a.genericArticles?.[0]?.genericArticleDescription || "Pièce Auto",
         img: img,
+        fullImg: fullImg,
         
-        // Données complètes
-        oems: (a.oemNumbers && a.oemNumbers.array ? a.oemNumbers.array : (a.oemNumbers || [])).map(o => `${o.mfrName}: ${o.articleNumber}`),
-        eans: (a.gtins && a.gtins.array ? a.gtins.array : (a.gtins || [])).concat(a.eanNumber ? [a.eanNumber] : []),
+        oems: (a.oemNumbers || []).map(o => `${o.mfrName}: ${o.articleNumber}`),
+        eans: (a.gtins || []).concat(a.eanNumber ? [a.eanNumber] : []),
         
-        criteria: criteriaList.map(c => ({
+        criteria: (a.articleCriteria || []).map(c => ({
             desc: c.criteriaDescription,
             val: c.formattedValue
         })),
 
-        vehicles: rawLinkages.slice(0, 200).map(v => ({
+        vehicles: rawLinkages.slice(0, 100).map(v => ({
             name: v.linkageTargetDescription,
             year: v.linkageTargetBeginYearMonth ? String(v.linkageTargetBeginYearMonth).substring(0,4) : ""
         })),
 
-        // NOUVEAU : Contenu du kit (ex: Disque, Butée...)
+        // Mapping des composants du kit
         components: rawParts.map(p => ({
             name: p.genericArticleDescription,
             ref: p.articleNumber,
@@ -103,7 +106,7 @@ function mapArticleData(a) {
     };
 }
 
-// ROUTES API
+// ROUTES
 
 app.get("/api/levam/:action", async (req, res) => {
     try {
@@ -114,14 +117,15 @@ app.get("/api/levam/:action", async (req, res) => {
 
 app.get("/api/materom/check", async (req, res) => {
     const term = req.query.ref;
+    const brandFilter = req.query.brand;
     if (!term || term === "undefined") return res.json({ success: false });
     try {
         const r = await callMaterom("/part_search/global", { term: term });
         if (!r || !r.length) return res.json({ success: false });
         
-        let match = r[0]; // Simplification : on prend le premier résultat pertinent
-        if (req.query.brand) {
-            const exact = r.find(i => i.article?.manufacturer?.name?.toLowerCase().includes(req.query.brand.toLowerCase()));
+        let match = r[0];
+        if (brandFilter) {
+            const exact = r.find(i => i.article?.manufacturer?.name?.toLowerCase().includes(brandFilter.toLowerCase()));
             if(exact) match = exact;
         }
 
@@ -135,47 +139,59 @@ app.get("/api/materom/check", async (req, res) => {
     } catch (e) { res.json({ success: false }); }
 });
 
-// SEARCH OE COMPLET
+// SEARCH OE (RETOUR À LA MÉTHODE SIMPLE MAIS COMPLÈTE)
 app.get("/api/tecdoc/search-oe", async (req, res) => {
     const rawOe = (req.query.oe || "").trim();
     const cleanOeNumber = cleanRef(rawOe);
     if (cleanOeNumber.length < 2) return res.json({ success: false });
 
     try {
-        // 1. Recherche Large
-        const searchPayload = { 
-            getArticleDirectSearchAllNumbersWithState: { 
-                provider: process.env.TECDOC_PROVIDER_ID, articleCountry: "CH", lang: "fr", articleNumber: cleanOeNumber, numberType: 10, searchExact: true 
+        const payload = { 
+            getArticles: { 
+                provider: process.env.TECDOC_PROVIDER_ID, 
+                articleCountry: "CH", 
+                lang: "fr", 
+                perPage: 50, 
+                page: 1, 
+                searchQuery: cleanOeNumber, 
+                searchType: 10, // Any Number
+                
+                // ON DEMANDE TOUT
+                includeAll: true,
+                includeArticleCriteria: true,
+                includeImages: true,
+                includeArticleLinkages: true,
+                includeArticleParts: true, // <--- C'est ici pour le Kit
+                linkageTargetType: "P" // Pour les voitures
             } 
         };
-        const searchRes = await tecdocHttpPost(searchPayload);
-        let foundItems = searchRes.data ? searchRes.data.array : [];
-        if (!foundItems.length) return res.json({ success: true, articles: [] });
 
-        // 2. Détails COMPLETS (avec articleParts pour le contenu du kit)
-        const relevantIds = foundItems.slice(0, 10).map(i => i.articleId || i.legacyArticleId);
-        
-        const detailsPayload = {
-            getDirectArticlesByIds6: {
-                provider: process.env.TECDOC_PROVIDER_ID, articleCountry: "CH", lang: "fr", 
-                articleId: { array: relevantIds },
-                includeImages: true,
-                includeArticleCriteria: true,
-                includeArticleLinkages: true,
-                includeArticleParts: true, // <--- C'EST CA QUI DONNE LE CONTENU DU KIT
-                linkingTargetType: "P"
-            }
-        };
+        const body = await tecdocHttpPost(payload);
+        let articles = body.articles || [];
 
-        const detailsRes = await tecdocHttpPost(detailsPayload);
-        let finalRawArticles = (detailsRes.data && detailsRes.data.array) ? detailsRes.data.array : [];
+        // Filtre léger
+        const validArticles = articles.filter(a => {
+            const jsonStr = JSON.stringify(a).toUpperCase().replace(/[^A-Z0-9]/g, "");
+            return jsonStr.includes(cleanOeNumber);
+        });
 
-        res.json({ success: true, articles: finalRawArticles.map(a => mapArticleData(a)) });
+        // Mapping (si articles est vide, ça renvoie vide, pas d'erreur)
+        res.json({ success: true, articles: validArticles.map(a => mapArticleData(a)) });
 
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/tecdoc/search-any", async (req, res) => { /* Même logique, simplifiée pour l'exemple */ });
+app.get("/api/tecdoc/search-any", async (req, res) => {
+    /* Route recherche texte simple */
+    const term = (req.query.term || "").trim();
+    try {
+        const payload = { 
+            getArticles: { provider: process.env.TECDOC_PROVIDER_ID, articleCountry: "CH", lang: "fr", perPage: 50, page: 1, searchQuery: term, searchType: 99, includeAll: true, includeArticleCriteria: true, includeArticleLinkages: true, linkageTargetType: "P" } 
+        };
+        const body = await tecdocHttpPost(payload);
+        res.json({ success: true, articles: (body.articles||[]).map(a => mapArticleData(a)) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 app.get(/(.*)/, (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 app.listen(PORT, () => console.log(`>>> SERVEUR PRET`));
