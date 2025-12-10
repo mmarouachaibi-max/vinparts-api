@@ -1,4 +1,4 @@
-const API_BASE = "https://vinparts-api.onrender.com/api"; 
+const API_BASE = "/api"; 
 let currentVehicleData = null;
 let panzoomInstance = null;
 
@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initGlobalSearch();
 });
 
-// --- UI ---
+// UI
 function setStatus(msg, type = "info") {
     const el = document.getElementById("search-status");
     if (el) el.innerHTML = `<div class="alert alert-${type} mt-3 fw-bold shadow-sm">${msg}</div>`;
@@ -45,7 +45,7 @@ function initVinSearch() {
     });
 }
 
-// 2. RECHERCHE MANUELLE
+// 2. MANUEL
 function initManualLevamSearch() {
     fetch(`${API_BASE}/levam/CatalogsListGet?type=0&lang=fr`).then(r => r.json()).then(d => {
         const sel = document.getElementById('brandSelect');
@@ -173,7 +173,7 @@ function initRefSearch() {
     document.getElementById('ref-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') triggerSearch(); });
 }
 
-// RENDU RICHE (Liste principale)
+// RENDU
 async function renderRichResultsList(articles) {
     const grid = document.getElementById('parts-grid');
     grid.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-danger"></div><br>Prix & Stocks...</div>';
@@ -190,7 +190,7 @@ async function renderRichResultsList(articles) {
     grid.innerHTML = html;
 }
 
-// CONSTRUCTION LIGNE
+// CONSTRUCTION LIGNE AVEC FICHE TECHNIQUE COMPLÈTE
 function buildRichRow(a, index) {
     let priceHtml = '<span class="badge bg-light text-dark border">Sur devis</span>';
     let btnHtml = `<button class="btn btn-outline-secondary btn-sm" disabled>Indisponible</button>`;
@@ -201,8 +201,28 @@ function buildRichRow(a, index) {
         if(inStock) btnHtml = `<button class="btn btn-danger btn-sm fw-bold shadow-sm px-3" onclick="sendToPrestashop('${a.ref}')"><i class="fa-solid fa-cart-shopping me-1"></i></button>`;
     }
 
-    let techRows = (a.criteria && a.criteria.length > 0) ? a.criteria.map(c => `<tr><td class="text-secondary small" style="width:40%">${c.desc}</td><td class="fw-bold small">${c.val}</td></tr>`).join('') : '';
-    let vehRows = (a.vehicles && a.vehicles.length > 0) ? a.vehicles.map(v => `<li class="list-group-item px-0 py-1 d-flex justify-content-between"><span>${v.name}</span><span class="badge bg-light text-dark border">${v.year||''}</span></li>`).join('') : `<li class="list-group-item text-muted fst-italic">Non spécifié</li>`;
+    // --- CONSTRUCTION FICHE TECHNIQUE COMPLÈTE ---
+    
+    // 1. Critères Physiques
+    let critHtml = (a.criteria && a.criteria.length > 0) 
+        ? a.criteria.map(c => `<tr><td class="text-secondary small" style="width:40%">${c.desc}</td><td class="fw-bold small">${c.val}</td></tr>`).join('') 
+        : `<tr><td class="text-muted small">Non spécifié</td></tr>`;
+
+    // 2. Codes EAN & Trade (Affichage Propre)
+    let extraInfos = '';
+    if(a.eans && a.eans.length > 0) extraInfos += `<div class="mb-2"><span class="badge bg-light text-dark border me-1">EAN</span> <span class="small text-muted">${a.eans.join(', ')}</span></div>`;
+    if(a.trade && a.trade.length > 0) extraInfos += `<div class="mb-2"><span class="badge bg-light text-dark border me-1">Ref.</span> <span class="small text-muted">${a.trade.join(', ')}</span></div>`;
+
+    // 3. OEM (Numéros constructeurs)
+    let oemHtml = '';
+    if(a.oems && a.oems.length > 0) {
+        oemHtml = `<div class="mt-3"><h6 class="fw-bold small text-uppercase text-muted border-bottom pb-1">Numéros OEM</h6><div class="small text-muted" style="max-height:100px;overflow-y:auto;">${a.oems.join('<br>')}</div></div>`;
+    }
+
+    // 4. Véhicules
+    let vehRows = (a.vehicles && a.vehicles.length > 0) 
+        ? a.vehicles.map(v => `<li class="list-group-item px-0 py-1 d-flex justify-content-between"><span>${v.name}</span><span class="badge bg-light text-dark border">${v.year||''}</span></li>`).join('') 
+        : `<li class="list-group-item text-muted fst-italic">Non spécifié</li>`;
 
     return `
     <div class="list-group-item p-3 border-bottom action-hover-effect">
@@ -214,7 +234,7 @@ function buildRichRow(a, index) {
                 <div>
                     <h6 class="mb-1 fw-bold text-dark">${a.brand} <span class="text-muted small">${a.ref}</span></h6>
                     <div class="text-secondary small mb-2 text-truncate" style="max-width:250px;">${a.name}</div>
-                    <button class="btn btn-link btn-sm p-0 text-decoration-none small fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#details-${index}"><i class="fa-solid fa-plus-circle"></i> Détails</button>
+                    <button class="btn btn-link btn-sm p-0 text-decoration-none small fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#details-${index}"><i class="fa-solid fa-plus-circle"></i> Fiche Technique & Auto</button>
                 </div>
             </div>
             <div class="d-flex align-items-center gap-3 justify-content-end ms-auto" style="min-width: 180px;">${priceHtml} ${btnHtml}</div>
@@ -223,14 +243,18 @@ function buildRichRow(a, index) {
             <div class="card border-0 bg-light rounded-3">
                 <div class="card-header bg-transparent border-bottom-0 p-2">
                     <ul class="nav nav-pills nav-fill card-header-tabs" role="tablist">
-                        <li class="nav-item"><button class="nav-link active py-1 small" data-bs-toggle="tab" data-bs-target="#tab-tech-${index}">Technique</button></li>
-                        <li class="nav-item"><button class="nav-link py-1 small" data-bs-toggle="tab" data-bs-target="#tab-veh-${index}">Véhicules</button></li>
+                        <li class="nav-item"><button class="nav-link active py-1 small" data-bs-toggle="tab" data-bs-target="#tab-tech-${index}">Caractéristiques</button></li>
+                        <li class="nav-item"><button class="nav-link py-1 small" data-bs-toggle="tab" data-bs-target="#tab-veh-${index}">Compatibilité (${a.vehicles ? a.vehicles.length : 0})</button></li>
                     </ul>
                 </div>
                 <div class="card-body p-3 pt-2">
                     <div class="tab-content">
-                        <div class="tab-pane fade show active" id="tab-tech-${index}"><table class="table table-sm table-borderless mb-0 small"><tbody>${techRows || '<tr><td class="text-muted">Pas de détails</td></tr>'}</tbody></table></div>
-                        <div class="tab-pane fade" id="tab-veh-${index}"><ul class="list-group list-group-flush small" style="max-height: 200px; overflow-y: auto;">${vehRows}</ul></div>
+                        <div class="tab-pane fade show active" id="tab-tech-${index}">
+                            ${extraInfos}
+                            <table class="table table-sm table-borderless mb-0 small"><tbody>${critHtml}</tbody></table>
+                            ${oemHtml}
+                        </div>
+                        <div class="tab-pane fade" id="tab-veh-${index}"><ul class="list-group list-group-flush small" style="max-height: 300px; overflow-y: auto;">${vehRows}</ul></div>
                     </div>
                 </div>
             </div>
@@ -238,7 +262,7 @@ function buildRichRow(a, index) {
     </div>`;
 }
 
-// 5. MODALE PRIX
+// 5. MODALE PRIX (Même affichage enrichi)
 async function showTecDocOffers(oeCode) {
     event.stopPropagation();
     const modal = new bootstrap.Modal(document.getElementById('productModal'));
@@ -271,7 +295,6 @@ async function showTecDocOffers(oeCode) {
     } catch(e) { mb.innerHTML = `<div class="alert alert-danger m-4">${e.message}</div>`; }
 }
 
-// ... Les autres fonctions (startCatalog, loadLevamTree, renderTree, loadParts...) restent identiques ...
 function startCatalog(ssd, link, title, subtitle) {
     currentVehicleData = { ssd, link };
     updateGarage(title, subtitle);
@@ -350,5 +373,4 @@ function highlightItem(posId) {
 function sendToPrestashop(ref) {
     const url = `https://vinparts.ch/index.php?controller=search&s=${encodeURIComponent(ref)}`;
     window.open(url, '_blank');
-
 }
