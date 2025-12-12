@@ -15,11 +15,15 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(compression());
 app.use(cors());
 app.use(express.json());
+
+// IMPORTANT : Assure-toi que ton dossier sur GitHub s'appelle bien "public" et non "publique"
 app.use(express.static(path.join(__dirname, "public")));
 
 const TECDOC_ENDPOINT = "https://webservice.tecalliance.services/pegasus-3-0/services/TecdocToCatDLB.jsonEndpoint";
 const LEVAM_BASE_URL = "https://api.levam.net/oem/v1";
 const MATEROM_URL = "https://api.materom.ro/api/v1";
+
+// --- FONCTIONS UTILITAIRES ---
 
 function cleanRef(ref) {
     if (!ref) return "";
@@ -41,26 +45,34 @@ async function tecdocHttpPost(payload) {
 
 async function callMaterom(endpoint, params = {}) {
     try {
+        // SÉCURITÉ : On utilise uniquement la variable d'environnement
+        const token = process.env.MATEROM_TOKEN; 
+        if (!token) {
+            console.error("⚠️ Token Materom manquant dans Render !");
+            return [];
+        }
+
         const res = await axios.get(`${MATEROM_URL}${endpoint}`, {
             headers: { 
-                "Authorization": `Bearer ${process.env.MATEROM_TOKEN || "1816|HOdgVM1HTevulaN9u1RMEEqRgeIUd6hvgUQckIIz"}`,
+                "Authorization": `Bearer ${token}`,
                 "Accept": "application/json"
             },
             params: params,
             timeout: 5000 
         });
         return res.data;
-    } catch (e) { return []; }
+    } catch (e) { 
+        console.error("Erreur Materom:", e.message);
+        return []; 
+    }
 }
 
-// --- MAPPING STANDARD (Celui qui marche) ---
 function mapArticleData(a) {
-    // Images
+    // Gestion des images
     let img = null;
     let fullImg = null;
     let imagesList = a.images || [];
     
-    // Sécurité structure images
     if (!Array.isArray(imagesList) && imagesList.array) imagesList = imagesList.array;
 
     if (imagesList.length > 0) {
@@ -68,11 +80,7 @@ function mapArticleData(a) {
         fullImg = imagesList[0].imageURL800 || imagesList[0].imageURL400;
     }
 
-    // Contenu du Kit (Parts)
-    let rawParts = a.articleParts || [];
-    if (!Array.isArray(rawParts) && rawParts.array) rawParts = rawParts.array;
-
-    // Linkages
+    // Gestion des linkages (Véhicules compatibles)
     let rawLinkages = a.articleLinkages || a.linkages || [];
     if (!Array.isArray(rawLinkages) && rawLinkages.array) rawLinkages = rawLinkages.array;
 
@@ -92,13 +100,13 @@ function mapArticleData(a) {
             val: c.formattedValue
         })),
 
+        // On récupère la liste des véhicules compatibles
         vehicles: rawLinkages.slice(0, 100).map(v => ({
             name: v.linkageTargetDescription,
             year: v.linkageTargetBeginYearMonth ? String(v.linkageTargetBeginYearMonth).substring(0,4) : ""
         })),
 
-        // Mapping des composants du kit
-        components: rawParts.map(p => ({
+        components: (a.articleParts || []).map(p => ({
             name: p.genericArticleDescription,
             ref: p.articleNumber,
             qty: p.quantity
@@ -106,24 +114,33 @@ function mapArticleData(a) {
     };
 }
 
-// ROUTES
+// --- ROUTES API ---
 
+// Proxy Levam
 app.get("/api/levam/:action", async (req, res) => {
     try {
-        const r = await axios.get(`${LEVAM_BASE_URL}/${req.params.action}`, { params: { api_key: process.env.LEVAM_API_KEY, ...req.query } });
+        const r = await axios.get(`${LEVAM_BASE_URL}/${req.params.action}`, { 
+            params: { api_key: process.env.LEVAM_API_KEY, ...req.query } 
+        });
         res.json(r.data);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
+// Proxy Materom (Prix & Stock)
 app.get("/api/materom/check", async (req, res) => {
     const term = req.query.ref;
     const brandFilter = req.query.brand;
+    
     if (!term || term === "undefined") return res.json({ success: false });
+    
     try {
         const r = await callMaterom("/part_search/global", { term: term });
         if (!r || !r.length) return res.json({ success: false });
         
         let match = r[0];
+        // Si on a une marque, on essaie de trouver la correspondance exacte
         if (brandFilter) {
             const exact = r.find(i => i.article?.manufacturer?.name?.toLowerCase().includes(brandFilter.toLowerCase()));
             if(exact) match = exact;
@@ -132,17 +149,29 @@ app.get("/api/materom/check", async (req, res) => {
         if (!match || !match.article || !match.article.pricing) return res.json({ success: false });
 
         let stock = 0;
-        if (match.article.pricing.available_plants) match.article.pricing.available_plants.forEach(p => stock += (p.maximum_order_quantity || 0));
-        else if (match.article.pricing.delivery === 'stoc') stock = 10;
+        if (match.article.pricing.available_plants) {
+            match.article.pricing.available_plants.forEach(p => stock += (p.maximum_order_quantity || 0));
+        } else if (match.article.pricing.delivery === 'stoc') {
+            stock = 10; // Valeur par défaut si marqué "en stock"
+        }
 
-        res.json({ success: true, found: true, price: match.article.pricing.price, currency: match.article.pricing.currency, stock: stock });
-    } catch (e) { res.json({ success: false }); }
+        res.json({ 
+            success: true, 
+            found: true, 
+            price: match.article.pricing.price, 
+            currency: match.article.pricing.currency, 
+            stock: stock 
+        });
+    } catch (e) { 
+        res.json({ success: false }); 
+    }
 });
 
-// SEARCH OE (RETOUR À LA MÉTHODE SIMPLE MAIS COMPLÈTE)
+// Recherche TecDoc par référence OE ou Aftermarket
 app.get("/api/tecdoc/search-oe", async (req, res) => {
     const rawOe = (req.query.oe || "").trim();
     const cleanOeNumber = cleanRef(rawOe);
+    
     if (cleanOeNumber.length < 2) return res.json({ success: false });
 
     try {
@@ -154,44 +183,37 @@ app.get("/api/tecdoc/search-oe", async (req, res) => {
                 perPage: 50, 
                 page: 1, 
                 searchQuery: cleanOeNumber, 
-                searchType: 10, // Any Number
+                searchType: 10, // Recherche large (Numéro OE ou Réf)
                 
-                // ON DEMANDE TOUT
                 includeAll: true,
                 includeArticleCriteria: true,
                 includeImages: true,
-                includeArticleLinkages: true,
-                includeArticleParts: true, // <--- C'est ici pour le Kit
-                linkageTargetType: "P" // Pour les voitures
+                includeArticleLinkages: true, // IMPORTANT pour la liste des véhicules
+                includeArticleParts: true,
+                linkageTargetType: "P" 
             } 
         };
 
         const body = await tecdocHttpPost(payload);
         let articles = body.articles || [];
 
-        // Filtre léger
+        // Petit nettoyage des résultats non pertinents
         const validArticles = articles.filter(a => {
             const jsonStr = JSON.stringify(a).toUpperCase().replace(/[^A-Z0-9]/g, "");
             return jsonStr.includes(cleanOeNumber);
         });
 
-        // Mapping (si articles est vide, ça renvoie vide, pas d'erreur)
-        res.json({ success: true, articles: validArticles.map(a => mapArticleData(a)) });
+        res.json({ 
+            success: true, 
+            articles: validArticles.map(a => mapArticleData(a)) 
+        });
 
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
-app.get("/api/tecdoc/search-any", async (req, res) => {
-    /* Route recherche texte simple */
-    const term = (req.query.term || "").trim();
-    try {
-        const payload = { 
-            getArticles: { provider: process.env.TECDOC_PROVIDER_ID, articleCountry: "CH", lang: "fr", perPage: 50, page: 1, searchQuery: term, searchType: 99, includeAll: true, includeArticleCriteria: true, includeArticleLinkages: true, linkageTargetType: "P" } 
-        };
-        const body = await tecdocHttpPost(payload);
-        res.json({ success: true, articles: (body.articles||[]).map(a => mapArticleData(a)) });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
+// Route Fallback (Sert le frontend)
 app.get(/(.*)/, (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
-app.listen(PORT, () => console.log(`>>> SERVEUR PRET`));
+
+app.listen(PORT, () => console.log(`>>> SERVEUR PRET sur le port ${PORT}`));
