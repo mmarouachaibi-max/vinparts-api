@@ -16,17 +16,18 @@ app.use(compression());
 app.use(cors());
 app.use(express.json());
 
-// IMPORTANT : Assure-toi que ton dossier sur GitHub s'appelle bien "public" et non "publique"
+// IMPORTANT : Dossier "public"
 app.use(express.static(path.join(__dirname, "public")));
 
 const TECDOC_ENDPOINT = "https://webservice.tecalliance.services/pegasus-3-0/services/TecdocToCatDLB.jsonEndpoint";
 const LEVAM_BASE_URL = "https://api.levam.net/oem/v1";
 const MATEROM_URL = "https://api.materom.ro/api/v1";
 
-// --- FONCTIONS UTILITAIRES ---
+// --- UTILITAIRES ---
 
 function cleanRef(ref) {
     if (!ref) return "";
+    // On garde uniquement les chiffres et les lettres, en majuscule
     return String(ref).replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
 }
 
@@ -38,19 +39,15 @@ async function tecdocHttpPost(payload) {
         });
         return res.data;
     } catch (e) {
-        console.error("❌ Erreur TecDoc:", e.message);
+        console.error("❌ Erreur Appel TecDoc:", e.message);
         throw e;
     }
 }
 
 async function callMaterom(endpoint, params = {}) {
     try {
-        // SÉCURITÉ : On utilise uniquement la variable d'environnement
         const token = process.env.MATEROM_TOKEN; 
-        if (!token) {
-            console.error("⚠️ Token Materom manquant dans Render !");
-            return [];
-        }
+        if (!token) return [];
 
         const res = await axios.get(`${MATEROM_URL}${endpoint}`, {
             headers: { 
@@ -62,17 +59,15 @@ async function callMaterom(endpoint, params = {}) {
         });
         return res.data;
     } catch (e) { 
-        console.error("Erreur Materom:", e.message);
+        console.error("⚠️ Erreur Materom:", e.message);
         return []; 
     }
 }
 
 function mapArticleData(a) {
-    // Gestion des images
     let img = null;
     let fullImg = null;
     let imagesList = a.images || [];
-    
     if (!Array.isArray(imagesList) && imagesList.array) imagesList = imagesList.array;
 
     if (imagesList.length > 0) {
@@ -80,7 +75,6 @@ function mapArticleData(a) {
         fullImg = imagesList[0].imageURL800 || imagesList[0].imageURL400;
     }
 
-    // Gestion des linkages (Véhicules compatibles)
     let rawLinkages = a.articleLinkages || a.linkages || [];
     if (!Array.isArray(rawLinkages) && rawLinkages.array) rawLinkages = rawLinkages.array;
 
@@ -91,56 +85,39 @@ function mapArticleData(a) {
         name: a.genericArticles?.[0]?.genericArticleDescription || "Pièce Auto",
         img: img,
         fullImg: fullImg,
-        
         oems: (a.oemNumbers || []).map(o => `${o.mfrName}: ${o.articleNumber}`),
-        eans: (a.gtins || []).concat(a.eanNumber ? [a.eanNumber] : []),
-        
-        criteria: (a.articleCriteria || []).map(c => ({
-            desc: c.criteriaDescription,
-            val: c.formattedValue
-        })),
-
-        // On récupère la liste des véhicules compatibles
         vehicles: rawLinkages.slice(0, 100).map(v => ({
             name: v.linkageTargetDescription,
             year: v.linkageTargetBeginYearMonth ? String(v.linkageTargetBeginYearMonth).substring(0,4) : ""
         })),
-
-        components: (a.articleParts || []).map(p => ({
-            name: p.genericArticleDescription,
-            ref: p.articleNumber,
-            qty: p.quantity
+        criteria: (a.articleCriteria || []).map(c => ({
+            desc: c.criteriaDescription,
+            val: c.formattedValue
         }))
     };
 }
 
-// --- ROUTES API ---
+// --- ROUTES ---
 
-// Proxy Levam
 app.get("/api/levam/:action", async (req, res) => {
     try {
         const r = await axios.get(`${LEVAM_BASE_URL}/${req.params.action}`, { 
             params: { api_key: process.env.LEVAM_API_KEY, ...req.query } 
         });
         res.json(r.data);
-    } catch (e) { 
-        res.status(500).json({ error: e.message }); 
-    }
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Proxy Materom (Prix & Stock)
 app.get("/api/materom/check", async (req, res) => {
     const term = req.query.ref;
     const brandFilter = req.query.brand;
-    
-    if (!term || term === "undefined") return res.json({ success: false });
+    if (!term) return res.json({ success: false });
     
     try {
         const r = await callMaterom("/part_search/global", { term: term });
         if (!r || !r.length) return res.json({ success: false });
         
         let match = r[0];
-        // Si on a une marque, on essaie de trouver la correspondance exacte
         if (brandFilter) {
             const exact = r.find(i => i.article?.manufacturer?.name?.toLowerCase().includes(brandFilter.toLowerCase()));
             if(exact) match = exact;
@@ -149,30 +126,21 @@ app.get("/api/materom/check", async (req, res) => {
         if (!match || !match.article || !match.article.pricing) return res.json({ success: false });
 
         let stock = 0;
-        if (match.article.pricing.available_plants) {
-            match.article.pricing.available_plants.forEach(p => stock += (p.maximum_order_quantity || 0));
-        } else if (match.article.pricing.delivery === 'stoc') {
-            stock = 10; // Valeur par défaut si marqué "en stock"
-        }
+        if (match.article.pricing.available_plants) match.article.pricing.available_plants.forEach(p => stock += (p.maximum_order_quantity || 0));
+        else if (match.article.pricing.delivery === 'stoc') stock = 10;
 
-        res.json({ 
-            success: true, 
-            found: true, 
-            price: match.article.pricing.price, 
-            currency: match.article.pricing.currency, 
-            stock: stock 
-        });
-    } catch (e) { 
-        res.json({ success: false }); 
-    }
+        res.json({ success: true, found: true, price: match.article.pricing.price, currency: match.article.pricing.currency, stock: stock });
+    } catch (e) { res.json({ success: false }); }
 });
 
-// Recherche TecDoc par référence OE ou Aftermarket
+// --- C'EST ICI QUE J'AI CORRIGÉ LE PROBLÈME ---
 app.get("/api/tecdoc/search-oe", async (req, res) => {
     const rawOe = (req.query.oe || "").trim();
-    const cleanOeNumber = cleanRef(rawOe);
+    const cleanOeNumber = cleanRef(rawOe); // Enlève les espaces: "21207599307"
     
-    if (cleanOeNumber.length < 2) return res.json({ success: false });
+    console.log(`🔍 Recherche TecDoc pour OE: "${rawOe}" -> Nettoyé: "${cleanOeNumber}"`);
+
+    if (cleanOeNumber.length < 2) return res.json({ success: false, msg: "Trop court" });
 
     try {
         const payload = { 
@@ -182,14 +150,12 @@ app.get("/api/tecdoc/search-oe", async (req, res) => {
                 lang: "fr", 
                 perPage: 50, 
                 page: 1, 
-                searchQuery: cleanOeNumber, 
-                searchType: 10, // Recherche large (Numéro OE ou Réf)
-                
+                searchQuery: cleanOeNumber, // On envoie le numéro sans espace
+                searchType: 10, // 10 = Any Number (plus large)
                 includeAll: true,
                 includeArticleCriteria: true,
                 includeImages: true,
-                includeArticleLinkages: true, // IMPORTANT pour la liste des véhicules
-                includeArticleParts: true,
+                includeArticleLinkages: true,
                 linkageTargetType: "P" 
             } 
         };
@@ -197,23 +163,22 @@ app.get("/api/tecdoc/search-oe", async (req, res) => {
         const body = await tecdocHttpPost(payload);
         let articles = body.articles || [];
 
-        // Petit nettoyage des résultats non pertinents
-        const validArticles = articles.filter(a => {
-            const jsonStr = JSON.stringify(a).toUpperCase().replace(/[^A-Z0-9]/g, "");
-            return jsonStr.includes(cleanOeNumber);
-        });
+        console.log(`✅ TecDoc a trouvé ${articles.length} articles.`);
 
+        // J'AI SUPPRIMÉ LE FILTRE STRICT ICI.
+        // On renvoie tout ce que TecDoc trouve.
+        
         res.json({ 
             success: true, 
-            articles: validArticles.map(a => mapArticleData(a)) 
+            articles: articles.map(a => mapArticleData(a)) 
         });
 
     } catch (e) { 
+        console.error("❌ Erreur Route:", e.message);
         res.status(500).json({ error: e.message }); 
     }
 });
 
-// Route Fallback (Sert le frontend)
 app.get(/(.*)/, (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
-app.listen(PORT, () => console.log(`>>> SERVEUR PRET sur le port ${PORT}`));
+app.listen(PORT, () => console.log(`>>> SERVEUR PRET sur ${PORT}`));
