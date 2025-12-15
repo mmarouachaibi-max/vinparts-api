@@ -3,78 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VinParts Pro - Pièces Auto</title>
+    <title>VinParts Pro - Pièces Auto Suisse</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link href="assets/css/style.css" rel="stylesheet">
 </head>
 <body>
-
-    <!-- NAVBAR -->
-    <nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top shadow-sm">
+    <nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top shadow-sm" style="z-index: 1000;">
         <div class="container">
-            <a class="navbar-brand text-uppercase" href="#" onclick="resetSearch()">
-                <span class="text-dark">VIN</span><span class="text-danger">PARTS</span>
-            </a>
-            
+            <a class="navbar-brand text-uppercase" href="#" onclick="resetSearch()"><span class="text-dark">VIN</span><span class="text-danger">PARTS</span></a>
             <div class="mx-auto d-none d-md-flex" style="width: 50%; max-width: 600px;">
-                <div class="input-group">
-                    <input type="text" id="global-search-input" class="form-control border-end-0 bg-light" placeholder="Référence OEM, EAN ou Nom de pièce...">
-                    <button class="btn btn-light border border-start-0" type="button" id="btn-global-search">
-                        <i class="fa-solid fa-magnifying-glass text-muted"></i>
-                    </button>
-                </div>
+                <div class="input-group"><input type="text" id="global-search-input" class="form-control border-end-0 bg-light" placeholder="Référence OEM, EAN ou Nom de pièce..."><button class="btn btn-light border border-start-0" type="button" id="btn-global-search"><i class="fa-solid fa-magnifying-glass text-muted"></i></button></div>
             </div>
-
-            <div class="ms-auto d-flex align-items-center gap-3">
-                <a href="#" class="btn btn-dark rounded-pill px-4 btn-sm fw-bold">
-                    <i class="fa-solid fa-user me-2"></i> Connexion
-                </a>
-            </div>
-        </div>
-        <div class="container d-md-none mt-2 pb-2">
-             <input type="text" id="global-search-input-mobile" class="form-control form-control-sm bg-light" placeholder="Rechercher...">
+            <div class="ms-auto d-flex align-items-center gap-3"><a href="#" class="btn btn-dark rounded-pill px-4 btn-sm fw-bold"><i class="fa-solid fa-user me-2"></i> Compte</a><a href="#" class="btn btn-outline-danger position-relative rounded-circle btn-sm" style="width: 35px; height: 35px;"><i class="fa-solid fa-cart-shopping"></i></a></div>
         </div>
     </nav>
 
-    <!-- RECHERCHE VEHICULE -->
+    <div class="category-quick-nav bg-white border-bottom shadow-sm sticky-top" style="top: 70px; z-index: 900;">
+        <div class="container"><div id="quick-nav-container" class="d-flex align-items-center gap-2 py-2 overflow-auto" style="white-space: nowrap;"></div></div>
+    </div>
+
     <section id="section-search" class="hero-section">
         <div class="container">
             <div class="row justify-content-center">
                 <div class="col-lg-8 text-center">
                     <h1 class="display-6 fw-bold mb-4">Identification Exacte</h1>
-                    
                     <div class="card border-0 text-dark text-start mx-auto shadow-lg overflow-hidden" style="max-width: 700px; border-radius:12px;">
-                        <div class="card-header bg-white border-bottom pt-4 px-4 pb-0">
-                            <ul class="nav nav-tabs border-0" role="tablist">
-                                <li class="nav-item">
-                                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#vin-panel">
-                                        <i class="fa-solid fa-barcode me-2"></i> Par VIN
-                                    </button>
-                                </li>
-                                <li class="nav-item">
-                                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#manual-panel">
-                                        <i class="fa-solid fa-car me-2"></i> Par Véhicule
-                                    </button>
-                                </li>
-                            </ul>
-                        </div>
+                        <div class="card-header bg-white border-bottom pt-4 px-4 pb-0"><ul class="nav nav-tabs border-0"><li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#vin-panel"><i class="fa-solid fa-barcode me-2"></i> Par VIN</button></li><li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#manual-panel"><i class="fa-solid fa-car me-2"></i> Par Véhicule</button></li></ul></div>
                         <div class="card-body p-4 bg-white">
                             <div class="tab-content">
-                                <div class="tab-pane fade show active" id="vin-panel">
-                                    <div class="d-flex gap-2">
-                                        <input type="text" id="vin-input" class="form-control form-control-lg bg-light" placeholder="Entrez le VIN (E)">
-                                        <button class="btn btn-danger px-4 fw-bold" id="btn-search-vin">GO</button>
-                                    </div>
-                                </div>
-
-                                <div class="tab-pane fade" id="manual-panel">
-                                    <div class="row g-3">
-                                        <div class="col-md-4"><select class="form-select bg-light" id="brandSelect"><option value="">Marque</option></select></div>
-                                        <div class="col-md-4"><select class="form-select bg-light" id="modelSelect" disabled><option value="">Modèle</option></select></div>
-                                        <div class="col-md-4"><select class="form-select bg-light" id="vehicleSelect" disabled><option value="">Version</option></select></div>
-                                    </div>
-                                </div>
+                                <div class="tab-pane fade show active" id="vin-panel"><div class="d-flex gap-2"><input type="text" id="vin-input" class="form-control form-control-lg bg-light" placeholder="Entrez le VIN (Repère E)"><button class="btn btn-danger px-4 fw-bold" id="btn-search-vin">GO</button></div></div>
+                                <div class="tab-pane fade" id="manual-panel"><div class="row g-3"><div class="col-md-4"><select class="form-select bg-light" id="brandSelect"><option value="">Marque</option></select></div><div class="col-md-4"><select class="form-select bg-light" id="modelSelect" disabled><option value="">Modèle</option></select></div><div class="col-md-4"><select class="form-select bg-light" id="vehicleSelect" disabled><option value="">Version</option></select></div></div></div>
                             </div>
                             <div id="search-status" class="text-center mt-2"></div>
                         </div>
@@ -84,64 +44,34 @@
         </div>
     </section>
 
-    <!-- HEADER VEHICULE IDENTIFIE -->
-    <section id="section-garage" class="d-none py-3 sticky-sub-nav bg-white border-bottom shadow-sm">
-        <div class="container d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center">
-                <div class="bg-danger bg-opacity-10 text-danger rounded-circle p-3 me-3"><i class="fa-solid fa-car fa-lg"></i></div>
-                <div><h5 class="m-0 fw-bold" id="garage-vehicle-name">-</h5><small class="text-muted" id="garage-vehicle-details">-</small></div>
-            </div>
-            <button class="btn btn-outline-dark btn-sm rounded-pill px-3" onclick="resetSearch()"><i class="fa-solid fa-xmark me-1"></i> Changer</button>
-        </div>
+    <section id="home-categories-section" class="py-5 bg-light">
+        <div class="container"><h3 class="fw-bold mb-4 text-dark border-start border-4 border-danger ps-3">Catalogue Pièces</h3><div id="home-categories-container" class="row g-3"></div></div>
     </section>
 
-    <!-- CATALOGUE -->
+    <section id="section-garage" class="d-none py-3 sticky-sub-nav bg-white border-bottom shadow-sm"><div class="container d-flex justify-content-between align-items-center"><div class="d-flex align-items-center"><div class="bg-danger bg-opacity-10 text-danger rounded-circle p-3 me-3"><i class="fa-solid fa-car fa-lg"></i></div><div><h5 class="m-0 fw-bold" id="garage-vehicle-name">-</h5><small class="text-muted" id="garage-vehicle-details">-</small></div></div><button class="btn btn-outline-dark btn-sm rounded-pill px-3" onclick="resetSearch()"><i class="fa-solid fa-xmark me-1"></i> Changer</button></div></section>
+
     <section id="section-catalog" class="container py-4 d-none">
         <div class="row g-4">
-            <!-- COLONNE GAUCHE : ARBRE -->
-            <div class="col-lg-3 d-none d-lg-block" id="tree-column">
-                <div class="card h-100 border-0 shadow-sm">
-                    <div class="card-header bg-white fw-bold text-uppercase text-muted small py-3 border-bottom">Catégories</div>
-                    <div class="card-body p-0" id="tree-container"></div>
-                </div>
-            </div>
-            
-            <!-- COLONNE DROITE : CONTENU -->
+            <div class="col-lg-3 d-none d-lg-block" id="tree-column"><div class="card h-100 border-0 shadow-sm"><div class="card-header bg-white fw-bold text-uppercase text-muted small py-3 border-bottom">Catégories</div><div class="card-body p-0" id="tree-container"></div></div></div>
             <div class="col-lg-9" id="parts-column">
-                <!-- Vue Eclatée -->
-                <div id="exploded-view-container" class="card mb-4 d-none shadow-sm border-0">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
-                        <small class="fw-bold text-danger"><i class="fa-solid fa-gears"></i> Vue Technique</small>
-                        <div class="zoom-toolbar d-flex gap-1">
-                            <button class="btn btn-light btn-sm border" onclick="zoomIn()"><i class="fa-solid fa-plus"></i></button>
-                            <button class="btn btn-light btn-sm border" onclick="zoomOut()"><i class="fa-solid fa-minus"></i></button>
-                            <button class="btn btn-light btn-sm border" onclick="zoomReset()"><i class="fa-solid fa-compress"></i></button>
-                        </div>
-                    </div>
-                    <div class="exploded-viewport"><div id="exploded-wrapper"></div></div>
-                    <div class="card-footer bg-white text-center small text-muted border-top-0"><i class="fa-solid fa-hand-pointer me-1"></i> Cliquez sur un numéro pour voir le prix</div>
-                </div>
-
-                <div class="d-flex align-items-center justify-content-between mb-3">
-                    <h4 class="fw-bold m-0"><span id="category-title">Résultats</span></h4>
-                </div>
-                <div id="parts-grid"></div>
+                <div id="exploded-view-container" class="card mb-4 d-none shadow-sm border-0"><div class="card-header bg-white d-flex justify-content-between align-items-center py-2"><small class="fw-bold text-danger"><i class="fa-solid fa-gears"></i> Vue Technique</small><div class="zoom-toolbar d-flex gap-1"><button class="btn btn-light btn-sm border" onclick="zoomIn()"><i class="fa-solid fa-plus"></i></button><button class="btn btn-light btn-sm border" onclick="zoomOut()"><i class="fa-solid fa-minus"></i></button><button class="btn btn-light btn-sm border" onclick="zoomReset()"><i class="fa-solid fa-compress"></i></button></div></div><div class="exploded-viewport"><div id="exploded-wrapper"></div></div><div class="card-footer bg-white text-center small text-muted border-top-0">Cliquez sur un numéro rouge</div></div>
+                <div class="d-flex align-items-center justify-content-between mb-3"><h4 class="fw-bold m-0"><span id="category-title">Résultats</span></h4></div><div id="parts-grid"></div>
             </div>
         </div>
     </section>
 
-    <!-- MODAL OFFRES -->
-    <div class="modal fade" id="productModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-xl">
-            <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header border-bottom">
-                    <h5 class="modal-title fw-bold" id="modal-title">Détails</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-0" id="modal-body" style="min-height:300px; background:#f4f6f9;"></div>
+    <footer class="bg-dark text-white pt-5 pb-3">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-lg-4 col-md-6"><h5 class="text-uppercase fw-bold text-danger mb-3">VINPARTS</h5><p class="small text-white-50">Votre spécialiste de la pièce détachée automobile en Suisse.</p></div>
+                <div class="col-lg-2 col-md-6"><h6 class="fw-bold mb-3">Aide</h6><ul class="list-unstyled small text-white-50"><li>Contact</li><li>Retours</li></ul></div>
+                <div class="col-lg-4 col-md-6"><h6 class="fw-bold mb-3">Paiement</h6><div class="d-flex flex-wrap gap-2"><span class="bg-white text-dark px-2 py-1 rounded small fw-bold">Visa</span><span class="bg-white text-dark px-2 py-1 rounded small fw-bold">TWINT</span></div></div>
             </div>
+            <hr class="border-secondary my-4"><div class="text-center small text-white-50">&copy; 2024 VinParts.ch</div>
         </div>
-    </div>
+    </footer>
+
+    <div class="modal fade" id="productModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-xl"><div class="modal-content border-0 shadow-lg"><div class="modal-header border-bottom"><h5 class="modal-title fw-bold" id="modal-title">Détails</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-0" id="modal-body" style="min-height:300px; background:#f4f6f9;"></div></div></div></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/panzoom@9.4.0/dist/panzoom.min.js"></script>
