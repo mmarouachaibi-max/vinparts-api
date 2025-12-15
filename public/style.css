@@ -1,0 +1,104 @@
+/* =========================================
+   1. CONFIGURATION GÉNÉRALE & TYPOGRAPHIE
+   ========================================= */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+
+:root {
+    --primary: #dc3545;       
+    --primary-dark: #b02a37;
+    --dark: #212529;
+    --light-bg: #f8f9fa;
+    --border-color: #e9ecef;
+    --oem-blue: #0d6efd;      
+}
+
+body { font-family: 'Inter', sans-serif; background: var(--light-bg); color: var(--dark); -webkit-font-smoothing: antialiased; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #999; }
+
+/* NAVBAR */
+.navbar { padding: 0.8rem 0; }
+.navbar-brand span { font-weight: 800; letter-spacing: -0.5px; }
+.hero-section { background: var(--dark); color: white; padding: 50px 0; }
+.nav-tabs .nav-link { color: #495057; border: none; font-weight: 600; }
+.nav-tabs .nav-link.active { color: var(--primary); border-bottom: 3px solid var(--primary); background: none; }
+
+/* --- BARRE DE NAVIGATION RAPIDE (QUICK NAV) --- */
+.category-quick-nav { height: 60px; display: flex; align-items: center; }
+#quick-nav-container::-webkit-scrollbar { display: none; }
+#quick-nav-container { -ms-overflow-style: none; scrollbar-width: none; padding-left: 5px; padding-right: 5px; }
+
+/* Style des boutons dropdown */
+.btn-cat-nav { font-size: 0.85rem; font-weight: 600; border-radius: 20px; padding: 6px 16px; background-color: #f8f9fa; border: 1px solid #e9ecef; color: var(--dark); transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+.btn-cat-nav:hover, .btn-cat-nav[aria-expanded="true"] { background-color: var(--primary); color: white; border-color: var(--primary); }
+.dropdown-menu { border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border-radius: 12px; overflow: hidden; margin-top: 10px !important; }
+.dropdown-item { padding: 8px 20px; font-size: 0.9rem; border-bottom: 1px solid #f8f9fa; cursor: pointer; }
+.dropdown-item:last-child { border-bottom: none; }
+.dropdown-item:hover { background-color: #fff5f5; color: var(--primary); font-weight: 600; }
+
+/* CATÉGORIES ACCUEIL (IMAGES) */
+.category-card { background: white; border: 1px solid #eee; border-radius: 8px; overflow: hidden; transition: all 0.3s ease; height: 100%; cursor: pointer; }
+.category-card:hover { box-shadow: 0 10px 20px rgba(0,0,0,0.1); transform: translateY(-5px); border-color: var(--primary); }
+.category-img-wrapper { height: 140px; overflow: hidden; background: #f8f9fa; display: flex; align-items: center; justify-content: center; }
+.category-img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+.category-card:hover .category-img { transform: scale(1.1); }
+.category-body { padding: 15px; }
+.category-title { font-weight: 700; font-size: 1rem; color: var(--dark); margin-bottom: 8px; }
+.subcategory-list { list-style: none; padding: 0; margin: 0; font-size: 0.8rem; color: #6c757d; }
+.subcategory-list li { margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.view-more-link { font-size: 0.8rem; color: var(--primary); font-weight: 600; margin-top: 5px; display: inline-block; }
+
+/* CATALOGUE & ARBRE */
+.accordion-button:not(.collapsed) { background-color: #fff5f5; color: var(--primary); font-weight: 700; }
+.accordion-button:focus { box-shadow: none; border-color: rgba(220,53,69,0.25); }
+
+/* VUE ÉCLATÉE */
+#exploded-view-container { background: white; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 20px; position: relative; overflow: hidden; }
+.exploded-viewport { height: 500px; width: 100%; cursor: grab; background-image: radial-gradient(#e0e0e0 1px, transparent 1px); background-size: 20px 20px; }
+.exploded-viewport:active { cursor: grabbing; }
+#exploded-wrapper { transform-origin: 0 0; position: relative; }
+#exploded-wrapper img { pointer-events: none; display: block; }
+.exploded-marker { position: absolute; background: rgba(255, 255, 255, 0.95); border: 2px solid var(--primary); color: var(--primary); font-weight: 800; font-size: 11px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; transform: translate(-50%, -50%); z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: all 0.2s; }
+.exploded-marker:hover, .exploded-marker.active { background: var(--primary); color: white; z-index: 20; transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 4px 8px rgba(220, 53, 69, 0.4); }
+.zoom-toolbar { position: absolute; top: 10px; right: 10px; z-index: 100; display: flex; flex-direction: column; gap: 5px; }
+.zoom-toolbar button { background: white; border: 1px solid #ccc; width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+.zoom-toolbar button:hover { color: var(--primary); background: #f8f9fa; }
+
+/* LISTE PIECES */
+.part-card { background: white; transition: all 0.2s; border: 1px solid var(--border-color); border-radius: 6px; }
+.part-card:hover { border-color: #adb5bd; transform: translateY(-1px); }
+.part-card.active-part { border: 2px solid var(--primary); background-color: #fff9f9; }
+
+/* FICHE PRODUIT PRO */
+.product-card { background: white; border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 20px; transition: box-shadow 0.2s; position: relative; }
+.product-card:hover { box-shadow: 0 10px 25px rgba(0,0,0,0.08); border-color: #ced4da; }
+.product-img-container { height: 160px; display: flex; align-items: center; justify-content: center; background: white; padding: 10px; overflow: hidden; }
+.product-img-container img { max-height: 100%; max-width: 100%; object-fit: contain; }
+.brand-badge { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: #6c757d; letter-spacing: 1px; margin-top: 10px; }
+.brand-badge.text-primary { color: var(--oem-blue) !important; }
+.ref-badge { background: #f1f3f5; color: #495057; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-family: monospace; margin-top: 5px; display: inline-block; }
+.price-tag { font-size: 1.6rem; font-weight: 800; color: var(--dark); letter-spacing: -1px; }
+.stock-badge { font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+.text-success-pro { color: #198754; }
+.text-warning-pro { color: #fd7e14; }
+
+/* ONGLETS FICHE PRODUIT */
+.nav-tabs-pro { border-bottom: 1px solid var(--border-color); margin-top: 15px; }
+.nav-tabs-pro .nav-link { color: #6c757d; font-size: 0.85rem; font-weight: 600; padding: 8px 15px; border: none; border-bottom: 2px solid transparent; }
+.nav-tabs-pro .nav-link:hover { color: var(--primary); }
+.nav-tabs-pro .nav-link.active { color: var(--primary); border-bottom: 2px solid var(--primary); background: transparent; }
+.vehicle-list-container { max-height: 200px; overflow-y: auto; background: #f8f9fa; border-top: 1px solid #e9ecef; }
+.vehicle-item { padding: 6px 15px; border-bottom: 1px solid #e9ecef; font-size: 0.80rem; }
+.vehicle-item:hover { background: #e9ecef; }
+.specs-table { margin-bottom: 10px; width: 100%; }
+.specs-table td { padding: 3px 0; font-size: 0.85rem; border: none; vertical-align: middle; }
+.specs-label { color: #6c757d; width: 45%; font-weight: 400; }
+.specs-value { font-weight: 600; color: var(--dark); }
+.tab-content .table-striped tbody tr:nth-of-type(odd) { background-color: rgba(0,0,0,.02); }
+
+/* FOOTER */
+footer { font-size: 0.9rem; }
+footer a:hover { color: white !important; text-decoration: underline !important; }
+.text-white-50 { color: rgba(255, 255, 255, 0.6) !important; }
